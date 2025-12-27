@@ -1,0 +1,4 @@
+ALTER TABLE post_contents DROP COLUMN IF EXISTS status;
+ALTER TABLE post_contents DROP COLUMN IF EXISTS fail_resaon;
+ALTER TABLE posts DROP COLUMN IF EXISTS status;
+ALTER TABLE posts DROP COLUMN IF EXISTS fail_reason;
