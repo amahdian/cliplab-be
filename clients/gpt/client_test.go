@@ -1,4 +1,4 @@
-package clients
+package gpt
 
 import (
 	"encoding/json"
@@ -42,7 +42,7 @@ Technology/Automation`))
 
 	// --- create client ---
 	token := os.Getenv("GPT_API_TOKEN")
-	client := NewGPTClient(server.URL, token)
+	client := NewClient(server.URL, token)
 
 	categories := []string{
 		"Technology/AI",

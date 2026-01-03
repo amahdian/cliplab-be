@@ -3,9 +3,10 @@ package svc
 import (
 	"context"
 
+	"github.com/amahdian/cliplab-be/clients/gemini"
+	"github.com/amahdian/cliplab-be/clients/rocksolid"
 	"github.com/redis/go-redis/v9"
 
-	"github.com/amahdian/cliplab-be/clients"
 	"github.com/amahdian/cliplab-be/global/env"
 	"github.com/amahdian/cliplab-be/storage"
 	"github.com/aws/aws-sdk-go/aws"
@@ -25,19 +26,19 @@ type StorageConfig struct {
 }
 
 type svcImpl struct {
-	pgStg          storage.PgStorage
-	Envs           *env.Envs
-	geminiClient   clients.GeminiClient
-	rapidApiClient clients.RapidApiClient
-	redisClient    *redis.Client
-	storageConfig  StorageConfig
+	pgStg         storage.PgStorage
+	Envs          *env.Envs
+	geminiClient  gemini.Client
+	scraperClient rocksolid.Client
+	redisClient   *redis.Client
+	storageConfig StorageConfig
 }
 
 func NewSvc(
 	pgStg storage.PgStorage,
 	envs *env.Envs,
-	geminiClient clients.GeminiClient,
-	rapidApiClient clients.RapidApiClient,
+	geminiClient gemini.Client,
+	scraperClient rocksolid.Client,
 	redisClient *redis.Client,
 	storageConfig StorageConfig) Svc {
 
@@ -45,7 +46,7 @@ func NewSvc(
 		pgStg,
 		envs,
 		geminiClient,
-		rapidApiClient,
+		scraperClient,
 		redisClient,
 		storageConfig,
 	}
@@ -64,7 +65,7 @@ func (s *svcImpl) NewPostSvc(ctx context.Context) PostSvc {
 }
 
 func (s *svcImpl) NewQueueSvc(ctx context.Context) QueueSvc {
-	return newPostQueueSvc(ctx, s.pgStg, s.Envs, s.geminiClient, s.rapidApiClient)
+	return newPostQueueSvc(ctx, s.pgStg, s.Envs, s.geminiClient, s.scraperClient)
 }
 
 func (s *svcImpl) NewWebSocketSvc(ctx context.Context) WebSocketSvc {

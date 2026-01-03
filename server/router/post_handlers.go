@@ -7,7 +7,6 @@ import (
 	"github.com/amahdian/cliplab-be/domain/contracts/resp"
 	"github.com/amahdian/cliplab-be/global/errs"
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 )
 
 func (r *Router) addPostToAnalyzeQueue(ctx *gin.Context) {
@@ -45,13 +44,8 @@ func (r *Router) getPostData(ctx *gin.Context) {
 		return
 	}
 
-	posetId, err := uuid.Parse(request.Id)
-	if err != nil {
-		resp.AbortWithError(ctx, err)
-	}
-
 	dSvc := r.svc.NewPostSvc(reqCtx.Ctx)
-	post, err := dSvc.GetPostById(posetId)
+	post, err := dSvc.GetPostById(request.Id)
 	if err != nil {
 		resp.AbortWithError(ctx, err)
 		return

@@ -1,4 +1,4 @@
-package dtos
+package gpt
 
 type GPTStreamChunk struct {
 	Choices []struct {

@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/amahdian/cliplab-be/clients"
+	"github.com/amahdian/cliplab-be/clients/gemini"
+	"github.com/amahdian/cliplab-be/clients/rocksolid"
 	"github.com/amahdian/cliplab-be/global/env"
 	"github.com/amahdian/cliplab-be/pkg/db"
 	"github.com/amahdian/cliplab-be/pkg/logger"
@@ -28,9 +29,9 @@ import (
 type Server struct {
 	Envs *env.Envs
 
-	GeminiClient   clients.GeminiClient
-	RapidApiClient clients.RapidApiClient
-	RedisClient    *redis.Client
+	GeminiClient  gemini.Client
+	ScraperClient rocksolid.Client
+	RedisClient   *redis.Client
 
 	Authenticator auth.Authenticator
 
@@ -123,7 +124,7 @@ func (s *Server) setupInfrastructure() error {
 	if err := s.setupGPTClient(); err != nil {
 		return err
 	}
-	if err := s.setupBrightDataClient(); err != nil {
+	if err := s.setupScaperClient(); err != nil {
 		return err
 	}
 	if err := s.setupRedis(); err != nil {
@@ -152,7 +153,7 @@ func (s *Server) setupServices() {
 		s.PgStorage,
 		s.Envs,
 		s.GeminiClient,
-		s.RapidApiClient,
+		s.ScraperClient,
 		s.RedisClient,
 		s.StorageConfig,
 	)
@@ -171,14 +172,14 @@ func (s *Server) setupAuthenticator() error {
 }
 
 func (s *Server) setupGPTClient() error {
-	client := clients.NewGeminiClient(s.Envs.Gemini.ClientHost, s.Envs.Gemini.Token)
+	client := gemini.NewClient(s.Envs.Gemini.ClientHost, s.Envs.Gemini.Token)
 	s.GeminiClient = client
 	return nil
 }
 
-func (s *Server) setupBrightDataClient() error {
-	client := clients.NewRapidApiClient(s.Envs.RapidApi.Token)
-	s.RapidApiClient = client
+func (s *Server) setupScaperClient() error {
+	client := rocksolid.NewClient(s.Envs.RapidApi.Token)
+	s.ScraperClient = client
 	return nil
 }
 

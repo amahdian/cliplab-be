@@ -1,4 +1,4 @@
-package dtos
+package brightdata
 
 import "time"
 

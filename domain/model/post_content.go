@@ -12,17 +12,13 @@ import (
 type PostContentType string
 
 const (
-	ContentCaption       PostContentType = "caption"
-	ContentSummary       PostContentType = "summary"
-	ContentTranscript    PostContentType = "transcript"
-	ContentTrendMetadata PostContentType = "trendMetadata"
-	ContentGiveaway      PostContentType = "giveaway"
-	ContentKeyPoint      PostContentType = "keyPoint"
+	ContentCaption    PostContentType = "caption"
+	ContentTranscript PostContentType = "transcript"
 )
 
 type PostContent struct {
 	ID       uuid.UUID       `json:"id" gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
-	PostID   uuid.UUID       `json:"postId" gorm:"type:uuid"`
+	PostID   string          `json:"postId"`
 	Type     PostContentType `json:"type"`
 	Language string          `json:"language"`
 
@@ -67,8 +63,6 @@ func (p *PostContent) AfterFind(_ *gorm.DB) (err error) {
 	switch p.Type {
 	case ContentTranscript:
 		contentValue = &SegmentPostContentMetadata{}
-	case ContentGiveaway:
-		contentValue = &GiveawayPostContentMetadata{}
 	}
 	if err := json.Unmarshal([]byte(p.MetadataRaw), contentValue); err != nil {
 		return err

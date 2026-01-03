@@ -1,4 +1,4 @@
-package dtos
+package rapidapi
 
 type InstagramItem struct {
 	Urls              []*InstagramUrlInfo `json:"urls"`

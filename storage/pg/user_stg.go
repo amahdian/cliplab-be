@@ -33,9 +33,9 @@ func (stg *UserStg) FindByEmail(email string) (user *model.User, err error) {
 	return
 }
 
-func (s *UserStg) FindByProvider(provider model.Provider, providerID string) (*model.User, error) {
+func (stg *UserStg) FindByProvider(provider model.Provider, providerID string) (*model.User, error) {
 	var user model.User
-	result := s.db.Where("provider = ? AND provider_id = ?", provider, providerID).First(&user)
+	result := stg.db.Where("provider = ? AND provider_id = ?", provider, providerID).First(&user)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, nil

@@ -1,4 +1,4 @@
-package clients
+package gpt
 
 import (
 	"bufio"
@@ -11,26 +11,25 @@ import (
 	"strings"
 	"time"
 
-	"github.com/amahdian/cliplab-be/clients/dtos"
 	"github.com/amahdian/cliplab-be/pkg/logger"
 	"github.com/pkg/errors"
 )
 
-type GPTClient interface {
+type Client interface {
 	StreamChatCompletions(body []byte) (<-chan string, error)
 	EmbedText(text string) ([]float32, error)
-	TranscribeAudio(fileData []byte, fileName string) (*dtos.TranscriptionResult, error)
+	TranscribeAudio(fileData []byte, fileName string) (*TranscriptionResult, error)
 	ClassifyPost(postText string, categories []string) ([]string, error)
 }
 
-type gptClient struct {
+type client struct {
 	BaseUrl    string
 	Token      string
 	HTTPClient *http.Client
 }
 
-func NewGPTClient(baseUrl, token string) GPTClient {
-	return &gptClient{
+func NewClient(baseUrl, token string) Client {
+	return &client{
 		BaseUrl: baseUrl,
 		Token:   token,
 		HTTPClient: &http.Client{
@@ -40,7 +39,7 @@ func NewGPTClient(baseUrl, token string) GPTClient {
 	}
 }
 
-func (c *gptClient) StreamChatCompletions(body []byte) (<-chan string, error) {
+func (c *client) StreamChatCompletions(body []byte) (<-chan string, error) {
 	resp, err := c.doStreamRequest(body)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to perform streaming request")
@@ -58,10 +57,10 @@ func (c *gptClient) StreamChatCompletions(body []byte) (<-chan string, error) {
 	return streamChan, nil
 }
 
-func (c *gptClient) EmbedText(text string) ([]float32, error) {
+func (c *client) EmbedText(text string) ([]float32, error) {
 	// 1. Define the request payload.
 	// We use a modern and efficient model, but this can be changed.
-	embeddingReq := dtos.EmbeddingRequest{
+	embeddingReq := EmbeddingRequest{
 		Input: text,
 		Model: "text-embedding-3-small",
 	}
@@ -87,7 +86,7 @@ func (c *gptClient) EmbedText(text string) ([]float32, error) {
 	}
 
 	// 5. Decode the JSON response from the response body.
-	var embeddingResp dtos.EmbeddingResponse
+	var embeddingResp EmbeddingResponse
 	if err := json.NewDecoder(resp.Body).Decode(&embeddingResp); err != nil {
 		return nil, errors.Wrap(err, "failed to decode embedding response")
 	}
@@ -100,7 +99,7 @@ func (c *gptClient) EmbedText(text string) ([]float32, error) {
 	return embeddingResp.Data[0].Embedding, nil
 }
 
-func (c *gptClient) TranscribeAudio(fileData []byte, fileName string) (*dtos.TranscriptionResult, error) {
+func (c *client) TranscribeAudio(fileData []byte, fileName string) (*TranscriptionResult, error) {
 	// 1. Create a buffer to hold the multipart form data
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
@@ -152,18 +151,18 @@ func (c *gptClient) TranscribeAudio(fileData []byte, fileName string) (*dtos.Tra
 	}
 
 	// 9. Decode the JSON response
-	var transcriptionResp dtos.TranscriptionResponse
+	var transcriptionResp TranscriptionResponse
 	if err := json.NewDecoder(resp.Body).Decode(&transcriptionResp); err != nil {
 		return nil, errors.Wrap(err, "failed to decode transcription response")
 	}
 
-	return &dtos.TranscriptionResult{
+	return &TranscriptionResult{
 		Text:     transcriptionResp.Text,
 		Language: transcriptionResp.Language,
 	}, nil
 }
 
-func (c *gptClient) ClassifyPost(postText string, categories []string) ([]string, error) {
+func (c *client) ClassifyPost(postText string, categories []string) ([]string, error) {
 	systemPrompt := `You are an intelligent content categorization assistant.
 You will receive a post text and a list of existing categories.
 Each category is in the format: 
@@ -185,9 +184,9 @@ Return format:
 MainCategory/Subcategory
 MainCategory2/Subcategory/Subcategory`, postText, strings.Join(categories, "\n"))
 
-	body, err := json.Marshal(dtos.ChatRequest{
+	body, err := json.Marshal(ChatRequest{
 		Model: "gpt-5-mini",
-		Messages: []dtos.ChatMessage{
+		Messages: []ChatMessage{
 			{Role: "system", Content: systemPrompt},
 			{Role: "user", Content: userPrompt},
 		},
@@ -211,7 +210,7 @@ MainCategory2/Subcategory/Subcategory`, postText, strings.Join(categories, "\n")
 		return nil, fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(respBody))
 	}
 
-	var result dtos.ChatResponse
+	var result ChatResponse
 	if err := json.Unmarshal(respBody, &result); err != nil {
 		return nil, errors.Wrap(err, "failed to parse response")
 	}
@@ -233,7 +232,7 @@ MainCategory2/Subcategory/Subcategory`, postText, strings.Join(categories, "\n")
 	return cleaned, nil
 }
 
-func (c *gptClient) doPost(endpoint string, body []byte, headers map[string]string) (*http.Response, error) {
+func (c *client) doPost(endpoint string, body []byte, headers map[string]string) (*http.Response, error) {
 	url := fmt.Sprintf("%s%s", c.BaseUrl, endpoint)
 
 	req, err := http.NewRequest("POST", url, bytes.NewReader(body))
@@ -261,7 +260,7 @@ func (c *gptClient) doPost(endpoint string, body []byte, headers map[string]stri
 	return resp, nil
 }
 
-func (c *gptClient) doStreamRequest(body []byte) (*http.Response, error) {
+func (c *client) doStreamRequest(body []byte) (*http.Response, error) {
 	endpoint := "/chat/completions"
 	headers := map[string]string{
 		"Accept":     "text/event-stream",
@@ -271,7 +270,7 @@ func (c *gptClient) doStreamRequest(body []byte) (*http.Response, error) {
 }
 
 // processStream reads the streaming response body and sends content chunks to a channel.
-func (c *gptClient) processStream(resp *http.Response, streamChan chan string) {
+func (c *client) processStream(resp *http.Response, streamChan chan string) {
 	defer resp.Body.Close()
 	defer close(streamChan)
 
@@ -297,7 +296,7 @@ func (c *gptClient) processStream(resp *http.Response, streamChan chan string) {
 			break
 		}
 
-		var chunk dtos.GPTStreamChunk
+		var chunk GPTStreamChunk
 		if err := json.Unmarshal([]byte(jsonStr), &chunk); err != nil {
 			// It's better to log this than to panic.
 			logger.Error("Error unmarshalling stream chunk", err)

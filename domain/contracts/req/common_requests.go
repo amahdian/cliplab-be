@@ -1,7 +1,7 @@
 package req
 
 type IdUri struct {
-	Id string `uri:"id" binding:"required,uuid"`
+	Id string `uri:"id" binding:"required"`
 }
 
 type NumberIdUri struct {

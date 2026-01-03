@@ -2,7 +2,6 @@ package pg
 
 import (
 	"github.com/amahdian/cliplab-be/domain/model"
-	"github.com/google/uuid"
 )
 
 type PostContentStg struct {
@@ -15,7 +14,7 @@ func NewPostContentStg(ses *ormSession) *PostContentStg {
 	}
 }
 
-func (s *PostContentStg) ListByPostId(postId uuid.UUID) ([]*model.PostContent, error) {
+func (s *PostContentStg) ListByPostId(postId string) ([]*model.PostContent, error) {
 	var list []*model.PostContent
 	err := s.db.Where("post_id = ?", postId).
 		Find(&list).

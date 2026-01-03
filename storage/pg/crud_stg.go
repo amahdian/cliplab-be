@@ -5,12 +5,13 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/amahdian/cliplab-be/pkg/logger"
 	"github.com/google/uuid"
+	logger2 "gorm.io/gorm/logger"
 
 	"github.com/amahdian/cliplab-be/domain/model/common"
 	"github.com/amahdian/cliplab-be/global"
 	"github.com/amahdian/cliplab-be/global/errs"
-	"github.com/amahdian/cliplab-be/pkg/logger"
 	"github.com/gertd/go-pluralize"
 	"github.com/pkg/errors"
 	"github.com/samber/lo"
@@ -63,6 +64,21 @@ func (stg *crudStg[M]) CreateInBatches(models []M) error {
 }
 
 func (stg *crudStg[M]) FindById(id uuid.UUID) (model M, err error) {
+	err = stg.db.First(&model, "id = ?", id).Error
+	if err != nil {
+		tableName := stg.getTableName()
+		switch {
+		case errors.Is(err, gorm.ErrRecordNotFound):
+			err = stg.entityNotFoundErr(id)
+		default:
+			err = errs.Wrapf(err, "Failed to get %s.", tableName)
+		}
+		return
+	}
+	return
+}
+
+func (stg *crudStg[M]) FindByHashId(id string) (model M, err error) {
 	err = stg.db.First(&model, "id = ?", id).Error
 	if err != nil {
 		tableName := stg.getTableName()
@@ -448,8 +464,8 @@ func (stg *crudStg[M]) getTableName() string {
 	return stg.tableName
 }
 
-func (stg *crudStg[M]) entityNotFoundErr(id uuid.UUID) error {
+func (stg *crudStg[M]) entityNotFoundErr(id any) error {
 	tableName := stg.getTableName()
 	entryName := pluralizer.Singular(tableName)
-	return errs.Newf(errs.NotFound, nil, errs.DefaultEntryNotFoundMessage, entryName, id)
+	return errs.Newf(errs.NotFound, logger2.ErrRecordNotFound, errs.DefaultEntryNotFoundMessage, entryName, id)
 }

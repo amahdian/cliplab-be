@@ -15,6 +15,7 @@ import (
 	"github.com/amahdian/cliplab-be/global/errs"
 	"github.com/amahdian/cliplab-be/storage"
 	"github.com/amahdian/cliplab-be/svc/auth"
+	"github.com/amahdian/cliplab-be/svc/utils"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/redis/go-redis/v9"
@@ -24,7 +25,7 @@ import (
 
 type PostSvc interface {
 	AddPostToAnalyzeQueue(url url.URL, user *auth.UserInfo, ip net.IP) (*resp.PostQueueResponse, error)
-	GetPostById(id uuid.UUID) (*resp.PostResponse, error)
+	GetPostById(id string) (*resp.PostResponse, error)
 }
 
 type postSvc struct {
@@ -59,11 +60,13 @@ func (s *postSvc) AddPostToAnalyzeQueue(url url.URL, user *auth.UserInfo, ip net
 
 	estimatedTime := getEstimatedTimeByPlatform(platform)
 
-	post, err := s.stg.Post(s.ctx).FindByUrl(url.String())
+	shortcode := utils.GetInstagramShortcode(url.String())
+	post, err := s.stg.Post(s.ctx).FindByHashId(shortcode)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, errs.Wrapf(err, "failed to find post by url %s", url.String())
+		return nil, errs.Wrapf(err, "failed to find post by hash id %s", shortcode)
 	}
-	if post != nil && post.Status != model.PostStatusFailed {
+
+	if post.ID != "" && post.Status != model.PostStatusFailed {
 		if post.Status == model.PostStatusCompleted {
 			estimatedTime = 0
 		}
@@ -74,10 +77,10 @@ func (s *postSvc) AddPostToAnalyzeQueue(url url.URL, user *auth.UserInfo, ip net
 	}
 
 	post = &model.Post{
-		UserIP:   ip.String(),
-		Link:     url.String(),
-		Platform: platform,
-		Status:   model.PostStatusPending,
+		ID:     shortcode,
+		UserIP: ip.String(),
+		Link:   url.String(),
+		Status: model.PostStatusPending,
 	}
 
 	if user.Id != uuid.Nil {
@@ -89,7 +92,7 @@ func (s *postSvc) AddPostToAnalyzeQueue(url url.URL, user *auth.UserInfo, ip net
 	}
 
 	jsonData, err := json.Marshal(&model.PostQueueData{
-		Id:       post.ID.String(),
+		Id:       post.ID,
 		Url:      post.Link,
 		Platform: platform,
 	})
@@ -106,12 +109,13 @@ func (s *postSvc) AddPostToAnalyzeQueue(url url.URL, user *auth.UserInfo, ip net
 	}, nil
 }
 
-func (s *postSvc) GetPostById(id uuid.UUID) (*resp.PostResponse, error) {
-	post, err := s.stg.Post(s.ctx).FindById(id)
+func (s *postSvc) GetPostById(id string) (*resp.PostResponse, error) {
+	p, err := s.stg.Post(s.ctx).FindByHashId(id)
 	if err != nil {
 		return nil, errs.Newf(errs.Internal, err, "failed to find post by id")
 	}
 
+	post := *p
 	if post.Status == model.PostStatusFailed {
 		return nil, errs.Newf(errs.Internal, nil, *post.FailReason)
 	}
@@ -125,7 +129,6 @@ func (s *postSvc) GetPostById(id uuid.UUID) (*resp.PostResponse, error) {
 
 	res := &resp.PostResponse{
 		Status:   post.Status,
-		Platform: post.Platform,
 		UserLink: lo.ToPtr(post.UserProfileLink),
 		ImageUrl: post.ImageURL,
 		VideoUrl: post.VideoURL,
@@ -135,6 +138,12 @@ func (s *postSvc) GetPostById(id uuid.UUID) (*resp.PostResponse, error) {
 	if err != nil {
 		return nil, errs.Newf(errs.Internal, err, "failed to list contents")
 	}
+	analysis, err := s.stg.PostAnalysis(s.ctx).FindByHashId(post.ID)
+	if err != nil {
+		return nil, errs.Newf(errs.Internal, err, "failed to get post analysis")
+	}
+
+	res.Analysis = analysis
 
 	for _, content := range contents {
 		switch content.Type {
@@ -149,13 +158,8 @@ func (s *postSvc) GetPostById(id uuid.UUID) (*resp.PostResponse, error) {
 				Emotion:   metaData.Emotion,
 				Speaker:   metaData.Speaker,
 			})
-		case model.ContentKeyPoint:
-			res.KeyPoints = append(res.KeyPoints, &resp.PostContentResponse{
-				Content:  content.Text,
-				Language: content.Language,
-			})
-		case model.ContentSummary:
-			res.Summary = &resp.PostContentResponse{
+		case model.ContentCaption:
+			res.Caption = &resp.PostContentResponse{
 				Content:  content.Text,
 				Language: content.Language,
 			}
@@ -195,9 +199,9 @@ func detectSocialMediaID(url url.URL) model.SocialPlatform {
 func getEstimatedTimeByPlatform(platform model.SocialPlatform) int {
 	switch platform {
 	case model.PlatformInstagram, model.PlatformTikTok, model.PlatformTwitter:
-		return 15
+		return 20
 	case model.PlatformYouTube:
-		return 30
+		return 40
 	default:
 		return 0
 	}

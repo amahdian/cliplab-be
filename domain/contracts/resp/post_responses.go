@@ -2,12 +2,11 @@ package resp
 
 import (
 	"github.com/amahdian/cliplab-be/domain/model"
-	"github.com/google/uuid"
 )
 
 type PostQueueResponse struct {
-	Id            uuid.UUID `json:"id"`
-	EstimatedTime int       `json:"estimatedTime"`
+	Id            string `json:"id"`
+	EstimatedTime int    `json:"estimatedTime"`
 }
 
 type PostContentResponse struct {
@@ -27,12 +26,11 @@ type PostResponse struct {
 
 	ImageUrl *string              `json:"imageUrl,omitempty"`
 	VideoUrl *string              `json:"videoUrl,omitempty"`
-	Caption  *string              `json:"caption,omitempty"`
 	UserLink *string              `json:"userLink,omitempty"`
 	Platform model.SocialPlatform `json:"platform"`
 
-	Hook      *string                       `json:"hook,omitempty"`
-	Segments  []*PostContentSegmentResponse `json:"segments,omitempty"`
-	KeyPoints []*PostContentResponse        `json:"keyPoints,omitempty"`
-	Summary   *PostContentResponse          `json:"summary,omitempty"`
+	Caption  *PostContentResponse          `json:"caption,omitempty"`
+	Segments []*PostContentSegmentResponse `json:"segments,omitempty"`
+
+	Analysis *model.PostAnalysis `json:"analysis"`
 }

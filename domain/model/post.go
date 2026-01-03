@@ -7,16 +7,6 @@ import (
 	"gorm.io/gorm"
 )
 
-type SocialPlatform string
-
-const (
-	PlatformInstagram SocialPlatform = "instagram"
-	PlatformTwitter   SocialPlatform = "twitter"
-	PlatformYouTube   SocialPlatform = "youtube"
-	PlatformTikTok    SocialPlatform = "tiktok"
-	PlatformUnknown   SocialPlatform = "unknown"
-)
-
 type PostFormat string
 
 const (
@@ -36,19 +26,19 @@ const (
 )
 
 type Post struct {
-	ID        uuid.UUID      `json:"id" gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
+	ID        string         `json:"id" gorm:"primaryKey"`
 	UserId    *uuid.UUID     `json:"userId" gorm:"type:uuid"`
 	UserIP    string         `json:"userIp" gorm:"type:inet"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	ChannelId *uuid.UUID     `json:"channelId" gorm:"type:uuid"`
+	CreatedAt time.Time      `json:"createdAt"`
+	UpdatedAt time.Time      `json:"updatedAt"`
+	DeletedAt gorm.DeletedAt `json:"-"`
 	PostDate  time.Time      `json:"postDate"`
 
-	Link     string         `json:"link"`
-	ImageURL *string        `json:"imageUrl"`
-	VideoURL *string        `json:"videoUrl,omitempty"` // optional field
-	Platform SocialPlatform `json:"platform"`
-	Format   PostFormat     `json:"format"`
+	Link     string     `json:"link"`
+	ImageURL *string    `json:"imageUrl"`
+	VideoURL *string    `json:"videoUrl,omitempty"` // optional field
+	Format   PostFormat `json:"format"`
 
 	Status     PostStatus `json:"status"`
 	FailReason *string    `json:"failReason"`
@@ -58,8 +48,13 @@ type Post struct {
 	UserProfileLink  string `json:"userProfileLink"`
 	UserProfileImage string `json:"userProfileImage"`
 
-	User     *User          `json:"user,omitempty" gorm:"foreignKey:UserId;references:ID"`
-	Contents []*PostContent `json:"contents,omitempty" gorm:"foreignKey:PostID"`
+	LikeCount      int64 `json:"likeCount"`
+	CommentCount   int64 `json:"commentCount"`
+	VideoViewCount int64 `json:"videoViewCount"`
+	VideoPlayCount int64 `json:"videoPlayCount"`
+
+	User    *User    `json:"user,omitempty" gorm:"foreignKey:UserId;references:ID"`
+	Channel *Channel `json:"channel,omitempty" gorm:"foreignKey:ChannelId;references:ID"`
 }
 
 func (*Post) TableName() string {

@@ -14,6 +14,7 @@ type PgCrudStorage[M schema.Tabler] interface {
 	CreateInBatches(models []M) error
 
 	FindById(id uuid.UUID) (model M, err error)
+	FindByHashId(id string) (model M, err error)
 	ListByIds(ids []uuid.UUID) (models []M, err error)
 
 	UpdateOne(model M, updateZeroValues bool) error

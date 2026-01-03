@@ -1,4 +1,4 @@
-package clients
+package rapidapi
 
 import (
 	"bytes"
@@ -8,21 +8,20 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/amahdian/cliplab-be/clients/dtos"
 	"github.com/pkg/errors"
 )
 
-type RapidApiClient interface {
-	GetInstagramPost(shortcode string) ([]*dtos.InstagramItem, error)
+type Client interface {
+	GetInstagramPost(shortcode string) ([]*InstagramItem, error)
 }
 
-type rapidApiClient struct {
+type client struct {
 	Token      string
 	HTTPClient *http.Client
 }
 
-func NewRapidApiClient(token string) RapidApiClient {
-	return &rapidApiClient{
+func NewClient(token string) Client {
+	return &client{
 		Token: token,
 		HTTPClient: &http.Client{
 			Timeout: 30 * time.Second,
@@ -30,7 +29,7 @@ func NewRapidApiClient(token string) RapidApiClient {
 	}
 }
 
-func (c *rapidApiClient) GetInstagramPost(shortcode string) ([]*dtos.InstagramItem, error) {
+func (c *client) GetInstagramPost(shortcode string) ([]*InstagramItem, error) {
 	requestBody := map[string]interface{}{
 		"shortcode": shortcode,
 	}
@@ -53,7 +52,7 @@ func (c *rapidApiClient) GetInstagramPost(shortcode string) ([]*dtos.InstagramIt
 	}
 
 	// 9. Decode the JSON response
-	var scrapResp []*dtos.InstagramItem
+	var scrapResp []*InstagramItem
 	if err := json.NewDecoder(resp.Body).Decode(&scrapResp); err != nil {
 		return nil, errors.Wrap(err, "failed to decode transcription response")
 	}
@@ -61,7 +60,7 @@ func (c *rapidApiClient) GetInstagramPost(shortcode string) ([]*dtos.InstagramIt
 	return scrapResp, nil
 }
 
-func (c *rapidApiClient) doPost(endpoint string, body []byte, host string, headers map[string]string) (*http.Response, error) {
+func (c *client) doPost(endpoint string, body []byte, host string, headers map[string]string) (*http.Response, error) {
 
 	req, err := http.NewRequest("POST", endpoint, bytes.NewReader(body))
 	if err != nil {

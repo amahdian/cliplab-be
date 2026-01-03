@@ -116,3 +116,15 @@ func (stg *Stg) Post(ctx context.Context) storage.PostStorage {
 func (stg *Stg) PostContent(ctx context.Context) storage.PostContentStorage {
 	return NewPostContentStg(stg.mustOrmSession(ctx))
 }
+
+func (stg *Stg) PostAnalysis(ctx context.Context) storage.PostAnalysisStorage {
+	return NewPostAnalysisStg(stg.mustOrmSession(ctx))
+}
+
+func (stg *Stg) Channel(ctx context.Context) storage.ChannelStorage {
+	return NewChannelStg(stg.mustOrmSession(ctx))
+}
+
+func (stg *Stg) ChannelHistory(ctx context.Context) storage.ChannelHistoryStorage {
+	return NewChannelHistoryStg(stg.mustOrmSession(ctx))
+}

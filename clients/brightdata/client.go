@@ -1,4 +1,4 @@
-package clients
+package brightdata
 
 import (
 	"bytes"
@@ -22,19 +22,19 @@ const (
 	DatasetIdYoutube   DatasetId = "gd_lk56epmy2i5g7lzu0k"
 )
 
-type BrightDataClient interface {
+type Client interface {
 	TriggerScrape(postUrl, postId string, platform model.SocialPlatform) error
 }
 
-type brightDataClientImpl struct {
+type client struct {
 	BaseUrl    string
 	Token      string
 	ApiHost    string
 	HTTPClient *http.Client
 }
 
-func NewBrightDataClient(baseUrl, token, apiHost string) BrightDataClient {
-	return &brightDataClientImpl{
+func NewClient(baseUrl, token, apiHost string) Client {
+	return &client{
 		BaseUrl: baseUrl,
 		Token:   token,
 		ApiHost: apiHost,
@@ -44,7 +44,7 @@ func NewBrightDataClient(baseUrl, token, apiHost string) BrightDataClient {
 	}
 }
 
-func (c *brightDataClientImpl) TriggerScrape(postUrl, postId string, platform model.SocialPlatform) error {
+func (c *client) TriggerScrape(postUrl, postId string, platform model.SocialPlatform) error {
 	endpoint := fmt.Sprintf("%s/datasets/v3/trigger", c.BaseUrl)
 	webhook := fmt.Sprintf("%s%s/webhook/brightdata/%s", c.ApiHost, global.ApiPrefix, postId)
 

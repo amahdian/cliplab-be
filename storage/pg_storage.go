@@ -7,6 +7,9 @@ type PgStorage interface {
 	User(ctx context.Context) UserStorage
 	Post(ctx context.Context) PostStorage
 	PostContent(ctx context.Context) PostContentStorage
+	PostAnalysis(ctx context.Context) PostAnalysisStorage
+	Channel(ctx context.Context) ChannelStorage
+	ChannelHistory(ctx context.Context) ChannelHistoryStorage
 }
 
 type Session interface {
