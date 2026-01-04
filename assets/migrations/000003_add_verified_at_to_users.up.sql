@@ -1,0 +1,2 @@
+ALTER TABLE users DROP COLUMN is_verified;
+ALTER TABLE users ADD COLUMN verified_at TIMESTAMPTZ;

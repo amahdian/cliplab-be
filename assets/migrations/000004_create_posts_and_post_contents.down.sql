@@ -1,0 +1,6 @@
+-- +goose Down
+DROP TABLE IF EXISTS post_contents;
+DROP TABLE IF EXISTS posts;
+DROP EXTENSION IF EXISTS "vector";
+DROP EXTENSION IF EXISTS "uuid-ossp";
+

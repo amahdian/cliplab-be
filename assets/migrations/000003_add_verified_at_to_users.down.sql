@@ -1,0 +1,2 @@
+ALTER TABLE users DROP COLUMN verified_at;
+ALTER TABLE users ADD COLUMN is_verified BOOLEAN DEFAULT FALSE;
