@@ -23,7 +23,7 @@ deploy: off
 
 notifications:
   - provider: Slack
-    incoming_webhook: https://hooks.slack.com/services/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
+    incoming_webhook:
     auth_token:
       secure: 
     channel: bots
