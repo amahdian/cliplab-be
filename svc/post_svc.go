@@ -138,7 +138,7 @@ func (s *postSvc) GetPostById(id string) (*resp.PostResponse, error) {
 	if err != nil {
 		return nil, errs.Newf(errs.Internal, err, "failed to list contents")
 	}
-	analysis, err := s.stg.PostAnalysis(s.ctx).FindByHashId(post.ID)
+	analysis, err := s.stg.PostAnalysis(s.ctx).FindByPostId(post.ID)
 	if err != nil {
 		return nil, errs.Newf(errs.Internal, err, "failed to get post analysis")
 	}

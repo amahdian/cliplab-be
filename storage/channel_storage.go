@@ -6,4 +6,6 @@ import (
 
 type ChannelStorage interface {
 	PgCrudStorage[*model.Channel]
+
+	FindByHandler(handler string) (*model.Channel, error)
 }

@@ -78,7 +78,7 @@ func (s *postQueueSvc) processInstagramScrap(post *model.Post) {
 	post.UserProfileLink = fmt.Sprintf("https://instagram.com/%s", dto.Owner.Username)
 	post.PostDate = time.Unix(dto.TakenAtTimestamp, 0)
 	post.ImageURL = &dto.ThumbnailSrc
-	post.VideoURL = &dto.DisplayResources[0].Src
+	post.VideoURL = &dto.VideoURL
 
 	post.LikeCount = int64(dto.EdgeMediaPreviewLike.Count)
 	post.CommentCount = int64(dto.EdgeMediaToParentComment.Count)
@@ -86,19 +86,22 @@ func (s *postQueueSvc) processInstagramScrap(post *model.Post) {
 	post.VideoPlayCount = int64(dto.VideoPlayCount)
 
 	if post.ChannelId == nil {
-		channel := &model.Channel{
-			FullName: dto.Owner.FullName,
-			Handler:  dto.Owner.Username,
-			Platform: model.PlatformInstagram,
+		channel, _ := s.stg.Channel(s.ctx).FindByHandler(dto.Owner.Username)
+		if channel == nil {
+			channel = &model.Channel{
+				FullName: dto.Owner.FullName,
+				Handler:  dto.Owner.Username,
+				Platform: model.PlatformInstagram,
+			}
+			_ = s.stg.Channel(s.ctx).CreateOne(channel)
 		}
 
-		_ = s.stg.Channel(s.ctx).CreateOne(channel)
 		post.ChannelId = &channel.ID
 	}
 
 	_ = s.stg.Post(s.ctx).UpdateOne(post, false)
 
-	if len(dto.DisplayResources) == 0 {
+	if dto.VideoURL == "" {
 		return
 	}
 
@@ -281,7 +284,7 @@ func (s *postQueueSvc) getInstagramVideoAnalysis(dto rocksolid.ReelData, otherVi
 
 	// 2. We usually analyze the main video (first one) or the longest one.
 	// Instagram carousels might have multiple videos, but for MVP we process the primary one.
-	targetVideo := dto.DisplayResources[0]
+	targetVideo := dto.VideoURL
 	caption := ""
 	language := "US"
 	if len(dto.EdgeMediaToCaption.Edges) > 0 {
@@ -333,13 +336,13 @@ func (s *postQueueSvc) getInstagramVideoAnalysis(dto rocksolid.ReelData, otherVi
 		}
 	}
 
-	logger.Infof("Starting AI analysis for video: %s", targetVideo.Src)
+	logger.Infof("Starting AI analysis for video: %s", targetVideo)
 
 	// 3. Call the Gemini client using the direct URL
 	// We pass "Instagram" as the platform context
 	result, err := s.GeminiClient.AnalyzeVideo(
 		model.PlatformInstagram,
-		targetVideo.Src,
+		targetVideo,
 		caption,
 		coauthors,
 		comments,
@@ -352,7 +355,7 @@ func (s *postQueueSvc) getInstagramVideoAnalysis(dto rocksolid.ReelData, otherVi
 		return nil, errs.Newf(errs.Internal, err, "failed to analyze video content")
 	}
 
-	logger.Infof("Finished analysis for video: %s", targetVideo.Src)
+	logger.Infof("Finished analysis for video: %s", targetVideo)
 
 	return result, nil
 }

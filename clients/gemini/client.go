@@ -90,8 +90,8 @@ Use the Google Search tool to perform a "Contextual Deep Dive":
    - audience_sentiment: A deep dive text analysis into how people reacted.
    - sentiment_score: A number (0-100) where 0 is extremely negative, 50 is neutral/mixed, and 100 is extremely positive based on comments.
 
-2. conetnt:
-   - hook: The exact opening line or visual action that captures attention.
+2. content:
+   - hook: The exact opening line or visual action that captures attention (Starting 3 seconds of video).
    - segments: Provide a detailed array of objects, where each object MUST contain:
      "speaker": (Identify the speaker, e.g., "Speaker 1", "Host", or Name if known),
      "timestamp": (Format as [MM:SS]),
@@ -112,7 +112,7 @@ Use the Google Search tool to perform a "Contextual Deep Dive":
    - script_ideas: 3 alternative angles to re-tell this story.
 
 5. pulish:
-   - captions: Provide Object with: casual, professional, viral (distinct captions).
+   - captions: Provide Object with: casual, professional, viral fields. (its not an array just one object)
    - hashtags: 5-10 highly relevant and trending hashtags.
 
 IMPORTANT: 
