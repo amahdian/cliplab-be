@@ -38,7 +38,7 @@ func (r *Router) registerUserRoutes() {
 
 func (r *Router) registerPostRoutes() {
 	config := newRouteConfig()
-	r.registerRoute(r.publicGroup, http.MethodPost, "/posts/analyze", r.addPostToAnalyzeQueue, config)
+	r.registerRoute(r.publicGroup, http.MethodPost, "/posts/analyze", r.addPostToAnalyzeQueue, config.withMiddlewares(middleware.VerifyRecaptcha(r.configs.Recaptcha.Secret)))
 	r.registerRoute(r.publicGroup, http.MethodGet, "/posts/:id", r.getPostData, config)
 }
 

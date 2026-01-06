@@ -43,6 +43,10 @@ type Envs struct {
 		Token string `env:"RAPIDAPI_TOKEN, required"`
 	}
 
+	Recaptcha struct {
+		Secret string `env:"RECAPTCHA_SECRET, required"`
+	}
+
 	Redis struct {
 		Address  string `env:"REDIS_ADDRESS, default=localhost:6379"`
 		Password string `env:"REDIS_PASSWORD"`
@@ -95,7 +99,7 @@ func Load(basePath string) (*Envs, error) {
 		log.Print("no .env file found")
 	}
 
-	log.Printf(fmt.Sprintf("trying to load %v env files", activeEnvFiles))
+	log.Printf("trying to load %v env files", activeEnvFiles)
 	err = godotenv.Load(activeEnvFiles...)
 	if err != nil {
 		return nil, err
