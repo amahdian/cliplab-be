@@ -1,6 +1,8 @@
 package resp
 
 import (
+	"time"
+
 	"github.com/amahdian/cliplab-be/domain/model"
 )
 
@@ -24,13 +26,25 @@ type PostContentSegmentResponse struct {
 type PostResponse struct {
 	Status model.PostStatus `json:"status"`
 
-	ImageUrl *string              `json:"imageUrl,omitempty"`
-	VideoUrl *string              `json:"videoUrl,omitempty"`
-	UserLink *string              `json:"userLink,omitempty"`
-	Platform model.SocialPlatform `json:"platform"`
+	ImageUrl    *string              `json:"imageUrl,omitempty"`
+	VideoUrl    *string              `json:"videoUrl,omitempty"`
+	UserLink    *string              `json:"userLink,omitempty"`
+	UserHandler *string              `json:"userHandler,omitempty"`
+	Platform    model.SocialPlatform `json:"platform"`
 
 	Caption  *PostContentResponse          `json:"caption,omitempty"`
 	Segments []*PostContentSegmentResponse `json:"segments,omitempty"`
 
-	Analysis *model.PostAnalysis `json:"analysis"`
+	LikeCount      int64     `json:"likeCount,omitempty"`
+	CommentCount   int64     `json:"commentCount,omitempty"`
+	ViewCount      int64     `json:"viewCount,omitempty"`
+	EngagementRate float64   `json:"engagementRate,omitempty"`
+	PostDate       time.Time `json:"postDate,omitempty"`
+
+	AverageLikeCount      int64   `json:"averageLikeCount,omitempty"`
+	AverageCommentCount   int64   `json:"averageCommentCount,omitempty"`
+	AverageViewCount      int64   `json:"averageViewCount,omitempty"`
+	AverageEngagementRate float64 `json:"averageEngagementRate,omitempty"`
+
+	Analysis *model.PostAnalysis `json:"analysis,omitempty"`
 }

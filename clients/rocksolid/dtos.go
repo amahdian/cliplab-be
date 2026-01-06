@@ -126,7 +126,7 @@ type Owner struct {
 }
 
 type EdgeCount struct {
-	Count int `json:"count"`
+	Count int64 `json:"count"`
 }
 
 type EdgeMediaToCaption struct {
@@ -144,7 +144,7 @@ type CaptionNode struct {
 }
 
 type EdgeMediaToParentComment struct {
-	Count    int           `json:"count"`
+	Count    int64         `json:"count"`
 	PageInfo PageInfo      `json:"page_info"`
 	Edges    []CommentEdge `json:"edges"`
 }

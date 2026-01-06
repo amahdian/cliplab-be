@@ -127,11 +127,30 @@ func (s *postSvc) GetPostById(id string) (*resp.PostResponse, error) {
 		}, nil
 	}
 
+	channel, err := s.stg.Channel(s.ctx).FindByHandler(post.UserAnchor)
+	if err != nil {
+		return nil, errs.Newf(errs.Internal, err, "failed to find channel")
+	}
+
+	er := (float64(post.LikeCount+post.CommentCount) / float64(channel.LastHistory.FollowersCount)) * 100
+	avgER := (float64(channel.LastHistory.AverageLikes+channel.LastHistory.AverageComments) / float64(channel.LastHistory.FollowersCount)) * 100
+
 	res := &resp.PostResponse{
-		Status:   post.Status,
-		UserLink: lo.ToPtr(post.UserProfileLink),
-		ImageUrl: post.ImageURL,
-		VideoUrl: post.VideoURL,
+		Platform:              model.PlatformInstagram,
+		Status:                post.Status,
+		UserLink:              lo.ToPtr(post.UserProfileLink),
+		UserHandler:           lo.ToPtr(post.UserName),
+		ImageUrl:              post.ImageURL,
+		VideoUrl:              post.VideoURL,
+		LikeCount:             post.LikeCount,
+		CommentCount:          post.CommentCount,
+		ViewCount:             post.VideoPlayCount,
+		PostDate:              post.PostDate,
+		EngagementRate:        er,
+		AverageLikeCount:      channel.LastHistory.AverageLikes,
+		AverageCommentCount:   channel.LastHistory.AverageComments,
+		AverageViewCount:      channel.LastHistory.AverageVideoPlays,
+		AverageEngagementRate: avgER,
 	}
 
 	contents, err := s.stg.PostContent(s.ctx).ListByPostId(post.ID)
@@ -199,9 +218,9 @@ func detectSocialMediaID(url url.URL) model.SocialPlatform {
 func getEstimatedTimeByPlatform(platform model.SocialPlatform) int {
 	switch platform {
 	case model.PlatformInstagram, model.PlatformTikTok, model.PlatformTwitter:
-		return 20
+		return 50
 	case model.PlatformYouTube:
-		return 40
+		return 120
 	default:
 		return 0
 	}

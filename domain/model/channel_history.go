@@ -11,14 +11,14 @@ type ChannelHistory struct {
 	ChannelID uuid.UUID `json:"channelId" gorm:"type:uuid"`
 	CreatedAt time.Time `json:"createdAt"`
 
-	FollowersCount int `json:"followersCount"`
-	FollowingCount int `json:"followingCount"`
-	MediaCount     int `json:"mediaCount"`
+	FollowersCount int64 `json:"followersCount"`
+	FollowingCount int64 `json:"followingCount"`
+	MediaCount     int64 `json:"mediaCount"`
 
-	AverageLikes      int `json:"averageLikes"`
-	AverageComments   int `json:"averageComments"`
-	AverageVideoViews int `json:"averageVideoViews"`
-	AverageVideoPlays int `json:"averageVideoPlays"`
+	AverageLikes      int64 `json:"averageLikes"`
+	AverageComments   int64 `json:"averageComments"`
+	AverageVideoViews int64 `json:"averageVideoViews"`
+	AverageVideoPlays int64 `json:"averageVideoPlays"`
 }
 
 func (*ChannelHistory) TableName() string {

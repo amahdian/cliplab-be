@@ -120,19 +120,18 @@ func (s *postQueueSvc) processInstagramScrap(post *model.Post) {
 	for _, reel := range otherVideos.Reels {
 		totalLike += reel.Node.Media.LikeCount
 		totalComment += reel.Node.Media.CommentCount
-		totalViewCount += reel.Node.Media.ViewCount
 		totalPlayCount += reel.Node.Media.PlayCount
 	}
 
-	avgLikes := 0
-	avgComments := 0
-	avgViews := 0
-	avgPlays := 0
+	avgLikes := int64(0)
+	avgComments := int64(0)
+	avgViews := int64(0)
+	avgPlays := int64(0)
 	if len(otherVideos.Reels) > 0 {
-		avgLikes = int(totalLike / int64(len(otherVideos.Reels)))
-		avgComments = int(totalComment / int64(len(otherVideos.Reels)))
-		avgViews = int(totalViewCount / int64(len(otherVideos.Reels)))
-		avgPlays = int(totalPlayCount / int64(len(otherVideos.Reels)))
+		avgLikes = totalLike / int64(len(otherVideos.Reels))
+		avgComments = totalComment / int64(len(otherVideos.Reels))
+		avgViews = totalViewCount / int64(len(otherVideos.Reels))
+		avgPlays = totalPlayCount / int64(len(otherVideos.Reels))
 	}
 
 	_ = s.stg.ChannelHistory(s.ctx).CreateOne(&model.ChannelHistory{
@@ -304,13 +303,12 @@ func (s *postQueueSvc) getInstagramVideoAnalysis(dto rocksolid.ReelData, otherVi
 	}
 	publishedAt := time.Unix(dto.TakenAtTimestamp, 0)
 
-	er := (dto.EdgeMediaPreviewLike.Count + dto.EdgeMediaToParentComment.Count) / dto.Owner.EdgeOwnerToTimelineMedia.Count
+	er := float64(dto.EdgeMediaPreviewLike.Count+dto.EdgeMediaToParentComment.Count) / float64(dto.Owner.EdgeOwnerToTimelineMedia.Count)
 	videoStats := map[string]float64{
 		"like_count":      float64(dto.EdgeMediaPreviewLike.Count),
 		"comment_count":   float64(dto.EdgeMediaToParentComment.Count),
-		"view_count":      float64(dto.VideoViewCount),
 		"play_count":      float64(dto.VideoPlayCount),
-		"engagement_rate": float64(er) * 100,
+		"engagement_rate": er * 100,
 	}
 
 	totalLike := int64(0)
@@ -330,9 +328,8 @@ func (s *postQueueSvc) getInstagramVideoAnalysis(dto rocksolid.ReelData, otherVi
 			"follower_count":          float64(dto.Owner.EdgeFollowedBy.Count),
 			"average_like_count":      float64(totalLike) / float64(len(otherVideos.Reels)),
 			"average_comment_count":   float64(totalComment) / float64(len(otherVideos.Reels)),
-			"average_view_count":      float64(totalViewCount) / float64(len(otherVideos.Reels)),
 			"average_play_count":      float64(totalPlayCount) / float64(len(otherVideos.Reels)),
-			"average_engagement_rate": float64(totalLike+totalComment) / (float64(len(otherVideos.Reels)) * float64(dto.Owner.EdgeFollowedBy.Count)) * 100,
+			"average_engagement_rate": (float64(totalLike+totalComment) / float64(int64(len(otherVideos.Reels))*dto.Owner.EdgeFollowedBy.Count)) * 100,
 		}
 	}
 

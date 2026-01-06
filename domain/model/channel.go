@@ -24,7 +24,8 @@ type Channel struct {
 	UpdatedAt time.Time      `json:"updatedAt"`
 	Platform  SocialPlatform `json:"platform"`
 
-	Histories []*ChannelHistory `json:"history"`
+	Histories   []*ChannelHistory `json:"history"`
+	LastHistory *ChannelHistory   `json:"lastHistory" gorm:"-"`
 }
 
 func (*Channel) TableName() string {
