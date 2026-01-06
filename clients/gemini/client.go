@@ -84,36 +84,49 @@ Use the Google Search tool to perform a "Contextual Deep Dive":
 - If the video uses a trending song that is just starting to peak: Boost the Topic Score.
 
 [OUTPUT STRUCTURE - JSON ONLY]:
-1. summary:
-   - big_idea: The core message/value proposition.
-   - why_viral: If stats are high, explain the psychological trigger. If not, explain what was missing.
-   - audience_sentiment: A deep dive text analysis into how people reacted.
-   - sentiment_score: A number (0-100) where 0 is extremely negative, 50 is neutral/mixed, and 100 is extremely positive based on comments.
-
-2. content:
-   - hook: The exact opening line or visual action that captures attention (Starting 3 seconds of video).
-   - segments: Provide a detailed array of objects, where each object MUST contain:
-     "speaker": (Identify the speaker, e.g., "Speaker 1", "Host", or Name if known),
-     "timestamp": (Format as [MM:SS]),
-     "content": (The actual transcribed text in the original language),
-     "emotion": (Choose ONLY from: "happy", "sad", "angry", "neutral" based on the speaker's tone).
-
-3. analysis:
-   - Provide a list of "metrics" where each item must contain: 
-     "label": (The name of the metric: Hook Strength, Topic Potential, Pacing, Value Delivery, Shareability, or CTA),
-     "score": (A number 0-100),
-     "explanation": (Why this score was given based on visual and search data),
-     "suggestion": (Specific, actionable advice to improve this specific metric for the next video).
-   - strengths: 3 or more string item.
-   - weaknesses: 3 or more string item.
-
-4. remix:
-   - hook_ideas: 3 fresh ways to start the same video.
-   - script_ideas: 3 alternative angles to re-tell this story.
-
-5. pulish:
-   - captions: Provide Object with: casual, professional, viral fields. (its not an array just one object)
-   - hashtags: 5-10 highly relevant and trending hashtags.
+{
+  "summary": {
+    "big_idea": "The core message/value proposition.",
+    "why_viral": "Explanation of the psychological trigger or missing elements.",
+    "audience_sentiment": "Deep dive analysis of reactions.",
+    "sentiment_score": 0-100
+  },
+  "content": {
+    "hook": "Provide a comprehensive analysis of the first 3 seconds. Include Visual Hook, Verbal Hook and Pattern Interruption in text",
+    "segments": [
+      {
+        "speaker": "Identity",
+        "timestamp": "[MM:SS]",
+        "content": "transcribed text",
+        "emotion": "happy/sad/angry/neutral"
+      }
+    ]
+  },
+  "analysis": {
+    "metrics": [
+      {
+        "label": "Hook Strength/Topic Potential/Pacing/Value Delivery/Shareability/CTA",
+        "score": 0-100,
+        "explanation": "Rationale",
+        "suggestion": "How to improve"
+      }
+    ],
+    "strengths": ["list of strengths"],
+    "weaknesses": ["list of weaknesses"]
+  },
+  "remix": {
+    "hook_ideas": ["3 fresh starts"],
+    "script_ideas": ["3 alternative angles"]
+  },
+  "publish": {
+    "captions": {
+      "casual": "text",
+      "professional": "text",
+      "viral": "text"
+    },
+    "hashtags": ["5-10 trending tags"]
+  }
+}
 
 IMPORTANT: 
 - For visual analysis, focus on frame changes and on-screen text.
@@ -121,12 +134,12 @@ IMPORTANT:
 - Return ONLY the raw JSON object. Do not include any conversational text or explanations outside the JSON block.
 
 [TIERED VIRALITY SCALE]:
-- Nano Accounts (<1K Followers): Viral status is ONLY achieved if Views > 5,000 AND Views > (Followers * 10). Below 5k views is considered "Network Reach" (friends & family), not virality.
+- Nano Accounts (<1K Followers): Viral status is ONLY achieved if Views > 5,000 AND Views > (Followers * 10).
 - Micro Accounts (1K - 10K Followers): Viral status starts if Views > (Followers * 5).
 - Mid-Large Accounts (>100K Followers): Viral status starts if Views > (Followers * 1.5) OR if the ER is 2x the average of their last 5 posts.
 
 JUDGMENT RULE: 
-Do not give a high "Viral Score" to very small accounts just because their views-to-follower ratio is high, unless they have broken the 5,000 views barrier. Crossing the "Stranger's Feed" (Explore/Reels Tab) is the true mark of virality.`,
+Crossing the "Stranger's Feed" (Explore/Reels Tab) is the true mark of virality.`,
 		platform, caption, strings.Join(coauthors, "|"), statsContext, averageStatsContext, strings.Join(comments, "|"), pubTime, currentTime, targetRegion, targetRegion, pubTime)
 
 	requestBody := map[string]interface{}{
@@ -261,8 +274,9 @@ Do not give a high "Viral Score" to very small accounts just because their views
 	var finalResult AnalysisResponse
 	actualJson := googleResp.Candidates[0].Content.Parts[0].Text
 
-	actualJson = strings.TrimPrefix(actualJson, "```json")
-	actualJson = strings.TrimSuffix(actualJson, "```")
+	// Clean up markdown markers if present
+	actualJson = strings.ReplaceAll(actualJson, "```json", "")
+	actualJson = strings.ReplaceAll(actualJson, "```", "")
 	actualJson = strings.TrimSpace(actualJson)
 
 	if err := json.Unmarshal([]byte(actualJson), &finalResult); err != nil {

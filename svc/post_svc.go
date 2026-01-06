@@ -117,7 +117,7 @@ func (s *postSvc) GetPostById(id string) (*resp.PostResponse, error) {
 
 	post := *p
 	if post.Status == model.PostStatusFailed {
-		return nil, errs.Newf(errs.Internal, nil, *post.FailReason)
+		return nil, errs.Newf(errs.Internal, nil, "%s", *post.FailReason)
 	}
 
 	if post.Status != model.PostStatusCompleted {

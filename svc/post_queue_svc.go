@@ -263,7 +263,7 @@ func (s *postQueueSvc) processInstagramScrap(post *model.Post) {
 			continue
 		}
 		if strings.Contains(strings.ToLower(m.Label), "cta") {
-			shareabilityScore = m.Score
+			ctaScore = m.Score
 			continue
 		}
 	}
