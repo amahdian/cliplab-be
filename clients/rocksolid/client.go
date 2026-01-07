@@ -32,9 +32,9 @@ func NewClient(token string) Client {
 }
 
 func (c *client) GetInstagramPost(shortcode string) (*ReelData, error) {
-	endpoint := "https://instagram-scraper-stable-api.p.rapidapi.com/get_media_data_v2.php"
+	endpoint := "https://auto-poster.co.uk/yt_api/get_media_data_v2.php"
 	url := fmt.Sprintf("%s?media_code=%s", endpoint, shortcode)
-	resp, err := c.doGet(url, "instagram-scraper-stable-api.p.rapidapi.com", nil)
+	resp, err := c.doGet(url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -61,11 +61,10 @@ func (c *client) GetInstagramPageReels(username string) (*Reels, error) {
 	form.Set("amount", "30")
 	form.Set("pagination_token", "")
 
-	endpoint := "https://instagram-scraper-stable-api.p.rapidapi.com/get_ig_user_reels.php"
+	endpoint := "https://auto-poster.co.uk/yt_api/get_ig_user_reels.php"
 	resp, err := c.doPost(
 		endpoint,
 		[]byte(form.Encode()),
-		"instagram-scraper-stable-api.p.rapidapi.com",
 		map[string]string{
 			"Content-Type": "application/x-www-form-urlencoded",
 		},
@@ -95,7 +94,6 @@ func (c *client) GetInstagramPageReels(username string) (*Reels, error) {
 func (c *client) doPost(
 	endpoint string,
 	body []byte,
-	host string,
 	headers map[string]string,
 ) (*http.Response, error) {
 
@@ -104,8 +102,7 @@ func (c *client) doPost(
 		return nil, errors.Wrap(err, "failed to create request")
 	}
 
-	req.Header.Set("x-rapidapi-key", c.Token)
-	req.Header.Set("x-rapidapi-host", host)
+	req.Header.Set("AP_API_KEY", c.Token)
 
 	for key, value := range headers {
 		req.Header.Set(key, value)
@@ -118,15 +115,14 @@ func (c *client) doPost(
 	return resp, nil
 }
 
-func (c *client) doGet(endpoint string, host string, headers map[string]string) (*http.Response, error) {
+func (c *client) doGet(endpoint string, headers map[string]string) (*http.Response, error) {
 
 	req, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create request")
 	}
 
-	req.Header.Set("x-rapidapi-key", c.Token)
-	req.Header.Set("x-rapidapi-host", host)
+	req.Header.Set("AP_API_KEY", c.Token)
 
 	// Only set Content-Type if not already provided in headers
 	if headers == nil || headers["Content-Type"] == "" {
