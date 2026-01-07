@@ -67,9 +67,10 @@ func (s *postSvc) AddPostToAnalyzeQueue(url url.URL, user *auth.UserInfo, ip net
 		return nil, errs.Wrapf(err, "failed to find post by hash id %s", shortcode)
 	}
 
+	now := time.Now()
+
 	if user.Id == uuid.Nil && post.ID == "" {
 		// check the rate limit
-		now := time.Now()
 		requestCount, err := s.stg.Post(s.ctx).CountByIpAndDate(ip, now)
 		if err == nil && requestCount > 2 {
 			return nil, errs.Newf(errs.PermissionDenied, nil, "payment required")
@@ -78,12 +79,24 @@ func (s *postSvc) AddPostToAnalyzeQueue(url url.URL, user *auth.UserInfo, ip net
 
 	if post.ID != "" {
 		if post.Status == model.PostStatusCompleted {
-			return &resp.PostQueueResponse{
-				Id:            post.ID,
-				EstimatedTime: 0,
-			}, nil
-		} else if post.Status == model.PostStatusFailed {
-			_ = s.stg.Post(s.ctx).DeleteOne(post)
+			if post.UpdatedAt.After(now.Add(-12 * time.Hour)) {
+				return &resp.PostQueueResponse{
+					Id:            post.ID,
+					EstimatedTime: 0,
+				}, nil
+			} else {
+				jsonData, _ := json.Marshal(&model.PostQueueData{
+					Id:       post.ID,
+					Url:      post.Link,
+					Platform: platform,
+				})
+				s.RedisClient.LPush(s.ctx, global.RedisPostRenewQueue, jsonData)
+
+				return &resp.PostQueueResponse{
+					Id:            post.ID,
+					EstimatedTime: 10,
+				}, nil
+			}
 		}
 	}
 
@@ -98,7 +111,7 @@ func (s *postSvc) AddPostToAnalyzeQueue(url url.URL, user *auth.UserInfo, ip net
 		post.UserId = &user.Id
 	}
 
-	if err := s.stg.Post(s.ctx).CreateOne(post); err != nil {
+	if err := s.stg.Post(s.ctx).UpsertOne(post, false); err != nil {
 		return nil, errs.Newf(errs.Internal, err, "failed to save post")
 	}
 
@@ -128,7 +141,7 @@ func (s *postSvc) GetPostById(id string) (*resp.PostResponse, error) {
 
 	post := *p
 	if post.Status == model.PostStatusFailed {
-		return nil, errs.Newf(errs.Internal, nil, "Failed to insight post. Please try again later.")
+		return nil, errs.Newf(errs.Internal, nil, "Failed to analyze the post. Please try again later.")
 	}
 
 	if post.Status != model.PostStatusCompleted {
@@ -230,7 +243,7 @@ func detectSocialMediaID(url url.URL) model.SocialPlatform {
 func getEstimatedTimeByPlatform(platform model.SocialPlatform) int {
 	switch platform {
 	case model.PlatformInstagram, model.PlatformTikTok, model.PlatformTwitter:
-		return 70
+		return 60
 	case model.PlatformYouTube:
 		return 120
 	default:

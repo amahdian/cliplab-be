@@ -20,6 +20,7 @@ import (
 
 type QueueSvc interface {
 	ProcessPost(url, id string, platform model.SocialPlatform) error
+	RenewPost(url, id string, platform model.SocialPlatform) error
 }
 
 type postQueueSvc struct {
@@ -52,6 +53,22 @@ func (s *postQueueSvc) ProcessPost(url, id string, platform model.SocialPlatform
 	switch platform {
 	case model.PlatformInstagram:
 		s.processInstagramScrap(post)
+	}
+
+	return nil
+}
+
+func (s *postQueueSvc) RenewPost(url, id string, platform model.SocialPlatform) error {
+	logger.Debug("Renew post stats:", url)
+
+	post, err := s.stg.Post(s.ctx).FindByHashId(id)
+	if err != nil {
+		return err
+	}
+
+	switch platform {
+	case model.PlatformInstagram:
+		s.renewInstagramScrap(post)
 	}
 
 	return nil
@@ -210,6 +227,11 @@ func (s *postQueueSvc) processInstagramScrap(post *model.Post) {
 		}
 	}
 
+	hashtags := make([]string, len(analysis.Publish.Hashtags))
+	for i, hashtag := range analysis.Publish.Hashtags {
+		hashtags[i] = strings.ReplaceAll(hashtag, "#", "")
+	}
+
 	// 5. Save Post Analysis
 	postAnalysis := &model.PostAnalysis{
 		PostId:            post.ID,
@@ -221,7 +243,7 @@ func (s *postQueueSvc) processInstagramScrap(post *model.Post) {
 		Weaknesses:        analysis.Analysis.Weaknesses,
 		HookIdeas:         analysis.Remix.HookIdeas,
 		ScriptIdeas:       analysis.Remix.ScriptIdeas,
-		Hashtags:          analysis.Publish.Hashtags,
+		Hashtags:          hashtags,
 		Captions: model.PostAnalysisCaptions{
 			Casual:       analysis.Publish.Captions.Casual,
 			Professional: analysis.Publish.Captions.Professional,
@@ -281,6 +303,99 @@ func (s *postQueueSvc) processInstagramScrap(post *model.Post) {
 	_ = s.stg.Post(s.ctx).UpdateOne(post, false)
 }
 
+func (s *postQueueSvc) renewInstagramScrap(post *model.Post) {
+	if post.Status != model.PostStatusCompleted {
+		return
+	}
+
+	shortcode := utils.GetInstagramShortcode(post.Link)
+
+	dto, err := s.ScraperClient.GetInstagramPost(shortcode)
+	if err != nil {
+		post.FailReason = lo.ToPtr(err.Error())
+		post.Status = model.PostStatusFailed
+		_ = s.stg.Post(s.ctx).UpdateOne(post, false)
+		return
+	}
+
+	// 1. Update initial post info
+	post.Status = model.PostStatusProcessing
+	post.UserName = dto.Owner.FullName
+	post.UserAnchor = dto.Owner.Username
+	post.UserProfileLink = fmt.Sprintf("https://instagram.com/%s", dto.Owner.Username)
+	post.PostDate = time.Unix(dto.TakenAtTimestamp, 0)
+	post.ImageURL = &dto.ThumbnailSrc
+	post.VideoURL = &dto.VideoURL
+
+	post.LikeCount = dto.EdgeMediaPreviewLike.Count
+	post.CommentCount = dto.EdgeMediaToParentComment.Count
+	post.VideoViewCount = int64(dto.VideoViewCount)
+	post.VideoPlayCount = int64(dto.VideoPlayCount)
+
+	if post.ChannelId == nil {
+		channel, _ := s.stg.Channel(s.ctx).FindByHandler(dto.Owner.Username)
+		if channel == nil {
+			channel = &model.Channel{
+				FullName: dto.Owner.FullName,
+				Handler:  dto.Owner.Username,
+				Platform: model.PlatformInstagram,
+			}
+			_ = s.stg.Channel(s.ctx).CreateOne(channel)
+		}
+
+		post.ChannelId = &channel.ID
+	}
+
+	_ = s.stg.Post(s.ctx).UpdateOne(post, false)
+
+	if dto.VideoURL == "" {
+		return
+	}
+
+	otherVideos, err := s.ScraperClient.GetInstagramPageReels(post.UserAnchor)
+	if err != nil {
+		post.FailReason = lo.ToPtr(err.Error())
+		post.Status = model.PostStatusFailed
+		_ = s.stg.Post(s.ctx).UpdateOne(post, false)
+		return
+	}
+
+	// 1.5 Save channel history
+	totalLike := int64(0)
+	totalComment := int64(0)
+	totalViewCount := int64(0)
+	totalPlayCount := int64(0)
+	for _, reel := range otherVideos.Reels {
+		totalLike += reel.Node.Media.LikeCount
+		totalComment += reel.Node.Media.CommentCount
+		totalPlayCount += reel.Node.Media.PlayCount
+	}
+
+	avgLikes := int64(0)
+	avgComments := int64(0)
+	avgViews := int64(0)
+	avgPlays := int64(0)
+	if len(otherVideos.Reels) > 0 {
+		avgLikes = totalLike / int64(len(otherVideos.Reels))
+		avgComments = totalComment / int64(len(otherVideos.Reels))
+		avgViews = totalViewCount / int64(len(otherVideos.Reels))
+		avgPlays = totalPlayCount / int64(len(otherVideos.Reels))
+	}
+
+	_ = s.stg.ChannelHistory(s.ctx).CreateOne(&model.ChannelHistory{
+		ChannelID:         *post.ChannelId,
+		FollowersCount:    dto.Owner.EdgeFollowedBy.Count,
+		MediaCount:        dto.Owner.EdgeOwnerToTimelineMedia.Count,
+		AverageLikes:      avgLikes,
+		AverageComments:   avgComments,
+		AverageVideoViews: avgViews,
+		AverageVideoPlays: avgPlays,
+	})
+
+	post.Status = model.PostStatusCompleted
+	_ = s.stg.Post(s.ctx).UpdateOne(post, false)
+}
+
 func (s *postQueueSvc) getInstagramVideoAnalysis(dto rocksolid.ReelData, otherVideos rocksolid.Reels, detector lingua.LanguageDetector) (*gemini.AnalysisResponse, error) {
 
 	// 2. We usually analyze the main video (first one) or the longest one.
@@ -305,7 +420,7 @@ func (s *postQueueSvc) getInstagramVideoAnalysis(dto rocksolid.ReelData, otherVi
 	}
 	publishedAt := time.Unix(dto.TakenAtTimestamp, 0)
 
-	er := float64(dto.EdgeMediaPreviewLike.Count+dto.EdgeMediaToParentComment.Count) / float64(dto.Owner.EdgeOwnerToTimelineMedia.Count)
+	er := float64(dto.EdgeMediaPreviewLike.Count+dto.EdgeMediaToParentComment.Count) / float64(dto.Owner.EdgeFollowedBy.Count)
 	videoStats := map[string]float64{
 		"like_count":      float64(dto.EdgeMediaPreviewLike.Count),
 		"comment_count":   float64(dto.EdgeMediaToParentComment.Count),
@@ -360,10 +475,30 @@ func (s *postQueueSvc) getInstagramVideoAnalysis(dto rocksolid.ReelData, otherVi
 }
 
 func getViralScore(topicScore, hookScore, pacingScore, valueDeliveryScore, shareabilityScore, ctaScore int) float64 {
-	return (float64(hookScore) * 0.25) +
-		(float64(topicScore) * 0.2) +
-		(float64(pacingScore) * 0.15) +
-		(float64(valueDeliveryScore) * 0.15) +
-		(float64(shareabilityScore) * 0.15) +
-		(float64(ctaScore) * 0.1)
+	t := float64(topicScore)
+	h := float64(hookScore)
+	p := float64(pacingScore)
+	v := float64(valueDeliveryScore)
+	s := float64(shareabilityScore)
+	c := float64(ctaScore)
+
+	gateMultiplier := 1.0
+	if t < 60 || s < 60 {
+		gateMultiplier = 0.6 // کاهش شدید نمره
+	}
+
+	// Base weighted score
+	score := (h*0.25 + t*0.2 + p*0.15 + v*0.15 + s*0.15 + c*0.1) * gateMultiplier
+
+	if c > 90 && s < 70 {
+		score *= 0.85
+	}
+
+	if score > 100 {
+		score = 100
+	} else if score < 0 {
+		score = 0
+	}
+
+	return score
 }

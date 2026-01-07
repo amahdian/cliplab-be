@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/amahdian/cliplab-be/domain/model"
+	"github.com/amahdian/cliplab-be/global/errs"
 	"github.com/pkg/errors"
 )
 
@@ -61,86 +62,140 @@ func (c *client) AnalyzeVideo(
 	averageStatsContext, _ := json.Marshal(averageStats)
 
 	promptText := fmt.Sprintf(`
-Act as a world-class Viral Content Strategist. Analyze this %s video and its metadata.
+Act as a senior %s Content & Growth Analyst with a critical, data-driven mindset.
+Your task is to analyze the provided %s honestly and precisely.
+Do NOT hype. Do NOT add extra sections. Do NOT invent fields.
+
+You MUST return ONLY a valid JSON object that EXACTLY matches the schema provided below.
+Any deviation, extra field, missing field, or rewording of keys is NOT allowed.
 
 [CONTEXT DATA]:
 - Video Caption: %s
 - Co-Authors: %s
 - Viedo Engagement Stats: %s
-- Page Average Engagement Stats: %s
-- Audience Comments: %s
+- Page Average Engagement Stats (last posts): %s
+- Audience Comments (sample): %s
 - Timing: Published at %s (Current Time: %s)
 - Target Region: %s
 
-[SEARCH STRATEGY - MANDATORY]:
-Use the Google Search tool to perform a "Contextual Deep Dive":
-1. ENTITY CHECK: Search for names, songs, or celebrities mentioned in the video or caption. Check their current viral status.
-2. EVENT CORRELATION: Search for major events (concerts, movie releases, trending news) happening in %s around %s that could be driving this video's virality.
-3. WAVE DETECTION: Is this video riding a cultural wave? (e.g., a trending sound, a challenge, or a viral news topic).
+--------------------------------
+MANDATORY ANALYSIS RULES
+--------------------------------
 
-[SCORING LOGIC FOR TOPIC}:
-- If the video is linked to a massive current event (e.g., a Taylor Swift concert happening NOW): Give a 90+ Topic Score.
-- If the topic is evergreen but the "Angle" is new: Give 70-80.
-- If the video uses a trending song that is just starting to peak: Boost the Topic Score.
+1. BASELINE COMPARISON (CRITICAL)
+- Always evaluate this post relative to the page’s own historical averages.
+- If Views, Likes, or Comments are BELOW page average, you MUST reflect this negatively
+  in scores, explanations, and weaknesses.
 
-[OUTPUT STRUCTURE - JSON ONLY]:
+2. ENGAGEMENT QUALITY
+- Distinguish between:
+  - CTA-driven comments (e.g. repeated single-word comments)
+  - Organic engagement (opinions, emotional reactions, discussion)
+- High comment count alone does NOT mean virality.
+
+3. VALUE CLARITY
+- If the video mainly validates emotions and delays real value to an external offer,
+  reflect this clearly in Value Delivery scoring and suggestions.
+
+4. VIRALITY HONESTY
+- Do NOT label content as viral unless it meaningfully exceeds page averages
+  or clearly penetrates non-follower feeds.
+- Funnel effectiveness ≠ Virality.
+
+5. TOPIC SCORING
+- When searching for current trends or waves, ALWAYS take into account:
+  - Publish Time %s
+  - Target Region %s
+  - Any recognizable personalities or celebrities detected in the video frames
+- Only assign Topic Score 90+ if Web Search confirms a current cultural wave/event relevant to that time and region.
+- If no wave is detected, classify topic as Evergreen/Saturated and score conservatively (≤80).
+
+--------------------------------
+SEARCH STRATEGY (REQUIRED)
+--------------------------------
+
+- Analyze the video frames to detect any recognizable personalities or celebrities.
+- Use Google Search (or another reliable source) to verify:
+  1. Whether the topic is currently trending **at the time of publish** (%s) in the **target region** (%s).
+  2. Whether similar narratives, challenges, or sounds are peaking or declining in that region/time.
+  3. If the content is riding a sound, challenge, or event wave relevant to the region/time.
+- If no wave is detected → classify as Evergreen/Saturated.
+
+--------------------------------
+OUTPUT FORMAT (STRICT)
+--------------------------------
+
+Return ONLY the following JSON structure.
+Use clear, concise language inside values.
+Scores must be realistic and justified.
+
 {
   "summary": {
     "big_idea": "The core message/value proposition.",
-    "why_viral": "Explanation of the psychological trigger or missing elements.",
-    "audience_sentiment": "Deep dive analysis of reactions.",
+    "why_viral": "Explain whether it truly went viral or what psychological trigger it relies on instead.",
+    "audience_sentiment": "Deep analysis of how the audience emotionally and cognitively reacted.",
     "sentiment_score": 0-100
   },
   "content": {
-    "hook": "Provide a comprehensive analysis of the first 3 seconds. Include Visual Hook, Verbal Hook and Pattern Interruption in text",
+    "hook": "Detailed analysis of the first 3 seconds including visual hook, verbal hook, and any pattern interruption.",
     "segments": [
       {
-        "speaker": "Identity",
+        "speaker": "Identity (e.g. Creator, Narrator)",
         "timestamp": "[MM:SS]",
-        "content": "transcribed text",
-        "emotion": "happy/sad/angry/neutral"
+        "content": "Transcribed or summarized spoken content",
+        "emotion": "happy | sad | angry | neutral | anxious | hopeful"
       }
     ]
   },
   "analysis": {
     "metrics": [
       {
-        "label": "Hook Strength/Topic Potential/Pacing/Value Delivery/Shareability/CTA",
+        "label": "Hook Strength | Topic Potential | Pacing | Value Delivery | Shareability | CTA",
         "score": 0-100,
-        "explanation": "Rationale",
-        "suggestion": "How to improve"
+        "explanation": "Data-backed rationale for the score.",
+        "suggestion": "Specific and actionable improvement."
       }
     ],
-    "strengths": ["list of strengths"],
-    "weaknesses": ["list of weaknesses"]
+    "strengths": [
+      "Clear, concrete strengths based on data and structure"
+    ],
+    "weaknesses": [
+      "Clear, concrete weaknesses based on performance and saturation"
+    ]
   },
   "remix": {
-    "hook_ideas": ["3 fresh starts"],
-    "script_ideas": ["3 alternative angles"]
+    "hook_ideas": [
+      "3 alternative opening hooks that are sharper or more disruptive"
+    ],
+    "script_ideas": [
+      "3 alternative script angles or narratives"
+    ]
   },
   "publish": {
     "captions": {
-      "casual": "text",
-      "professional": "text",
-      "viral": "text"
+      "casual": "Conversational caption",
+      "professional": "Clean, authority-based caption",
+      "viral": "Short, punchy, curiosity-driven caption"
     },
-    "hashtags": ["5-10 trending tags"]
+    "hashtags": [
+      "5–10 relevant and currently popular hashtags for the region"
+    ]
   }
 }
 
-IMPORTANT: 
-- For visual analysis, focus on frame changes and on-screen text.
-- Topic score must be based on "Web Search" data to check if the subject is currently trending.
-- Return ONLY the raw JSON object. Do not include any conversational text or explanations outside the JSON block.
+--------------------------------
+FINAL INSTRUCTIONS
+--------------------------------
 
-[TIERED VIRALITY SCALE]:
-- Nano Accounts (<1K Followers): Viral status is ONLY achieved if Views > 5,000 AND Views > (Followers * 10).
-- Micro Accounts (1K - 10K Followers): Viral status starts if Views > (Followers * 5).
-- Mid-Large Accounts (>100K Followers): Viral status starts if Views > (Followers * 1.5) OR if the ER is 2x the average of their last 5 posts.
-
-JUDGMENT RULE: 
-Crossing the "Stranger's Feed" (Explore/Reels Tab) is the true mark of virality.`,
-		platform, caption, strings.Join(coauthors, "|"), statsContext, averageStatsContext, strings.Join(comments, "|"), pubTime, currentTime, targetRegion, targetRegion, pubTime)
+- Output ONLY valid JSON.
+- Do NOT include markdown, explanations, or commentary outside the JSON.
+- Do NOT add, rename, or remove fields.
+- Be analytical, not motivational.
+- Assume the reader will use this output programmatically.`,
+		platform, platform, caption, strings.Join(coauthors, "|"),
+		statsContext, averageStatsContext, strings.Join(comments, "|"),
+		pubTime, currentTime, targetRegion, pubTime, targetRegion, pubTime, targetRegion,
+	)
 
 	requestBody := map[string]interface{}{
 		"contents": []map[string]interface{}{
@@ -267,7 +322,19 @@ Crossing the "Stranger's Feed" (Explore/Reels Tab) is the true mark of virality.
 	}
 
 	if len(googleResp.Candidates) == 0 || len(googleResp.Candidates[0].Content.Parts) == 0 {
-		return nil, errors.New("empty response from Gemini API")
+		var apiErr struct {
+			Error struct {
+				Code    int    `json:"code"`
+				Message string `json:"message"`
+				Status  string `json:"status"`
+			} `json:"error"`
+		}
+
+		if err := json.NewDecoder(resp.Body).Decode(&apiErr); err == nil && apiErr.Error.Code != 0 {
+			return nil, errs.Newf(errs.Internal, err, apiErr.Error.Message)
+		}
+
+		return nil, errors.New("google api returned no candidates and no error details")
 	}
 
 	// 5. Unmarshal the actual JSON string from the response part into our struct

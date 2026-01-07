@@ -17,6 +17,7 @@ func runQueue(rdb *redis.Client, svc svc.Svc) {
 	for {
 		res, err := rdb.BRPop(context.Background(), 0,
 			global.RedisPostQueue,
+			global.RedisPostRenewQueue,
 		).Result()
 
 		if err != nil {
@@ -41,6 +42,16 @@ func handleMessage(channel, payload string, svc svc.Svc) {
 		err := qSvc.ProcessPost(data.Url, data.Id, data.Platform)
 		if err != nil {
 			logger.Error("Failed to process post:", err)
+		}
+	case global.RedisPostRenewQueue:
+		var data model.PostQueueData
+		if err := json.Unmarshal([]byte(payload), &data); err != nil {
+			logger.Error("invalid queue payload:", err)
+			return
+		}
+		err := qSvc.RenewPost(data.Url, data.Id, data.Platform)
+		if err != nil {
+			logger.Error("Failed to renew post:", err)
 		}
 	default:
 		logger.Error("Unhandled channel %s: %s", channel, payload)

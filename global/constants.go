@@ -13,6 +13,7 @@ const (
 
 	UnavailableVersion = "unavailable"
 
-	RedisKeyPrefix = "cliplab:"
-	RedisPostQueue = RedisKeyPrefix + "post_queue"
+	RedisKeyPrefix      = "cliplab:"
+	RedisPostQueue      = RedisKeyPrefix + "post_queue"
+	RedisPostRenewQueue = RedisKeyPrefix + "post_renew_queue"
 )
