@@ -67,6 +67,7 @@ func (s *postQueueSvc) processInstagramScrap(post *model.Post) {
 	dto, err := s.ScraperClient.GetInstagramPost(shortcode)
 	if err != nil {
 		post.FailReason = lo.ToPtr(err.Error())
+		post.Status = model.PostStatusFailed
 		_ = s.stg.Post(s.ctx).UpdateOne(post, false)
 		return
 	}
@@ -80,8 +81,8 @@ func (s *postQueueSvc) processInstagramScrap(post *model.Post) {
 	post.ImageURL = &dto.ThumbnailSrc
 	post.VideoURL = &dto.VideoURL
 
-	post.LikeCount = int64(dto.EdgeMediaPreviewLike.Count)
-	post.CommentCount = int64(dto.EdgeMediaToParentComment.Count)
+	post.LikeCount = dto.EdgeMediaPreviewLike.Count
+	post.CommentCount = dto.EdgeMediaToParentComment.Count
 	post.VideoViewCount = int64(dto.VideoViewCount)
 	post.VideoPlayCount = int64(dto.VideoPlayCount)
 
@@ -108,6 +109,7 @@ func (s *postQueueSvc) processInstagramScrap(post *model.Post) {
 	otherVideos, err := s.ScraperClient.GetInstagramPageReels(post.UserAnchor)
 	if err != nil {
 		post.FailReason = lo.ToPtr(err.Error())
+		post.Status = model.PostStatusFailed
 		_ = s.stg.Post(s.ctx).UpdateOne(post, false)
 		return
 	}

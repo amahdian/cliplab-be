@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/amahdian/cliplab-be/domain/contracts/resp"
 	"github.com/amahdian/cliplab-be/domain/model"
@@ -55,7 +56,7 @@ func newPostSvc(
 func (s *postSvc) AddPostToAnalyzeQueue(url url.URL, user *auth.UserInfo, ip net.IP) (*resp.PostQueueResponse, error) {
 	platform := detectSocialMediaID(url)
 	if platform != model.PlatformInstagram {
-		return nil, errs.Newf(errs.InvalidArgument, nil, "unsupported platform, we only support Instagram for now")
+		return nil, errs.Newf(errs.InvalidArgument, nil, "unsupported platform, we only support Instagram reels for now")
 	}
 
 	estimatedTime := getEstimatedTimeByPlatform(platform)
@@ -66,14 +67,24 @@ func (s *postSvc) AddPostToAnalyzeQueue(url url.URL, user *auth.UserInfo, ip net
 		return nil, errs.Wrapf(err, "failed to find post by hash id %s", shortcode)
 	}
 
-	if post.ID != "" && post.Status != model.PostStatusFailed {
-		if post.Status == model.PostStatusCompleted {
-			estimatedTime = 0
+	if user.Id == uuid.Nil && post.ID == "" {
+		// check the rate limit
+		now := time.Now()
+		requestCount, err := s.stg.Post(s.ctx).CountByIpAndDate(ip, now)
+		if err == nil && requestCount > 2 {
+			return nil, errs.Newf(errs.PermissionDenied, nil, "payment required")
 		}
-		return &resp.PostQueueResponse{
-			Id:            post.ID,
-			EstimatedTime: estimatedTime,
-		}, nil
+	}
+
+	if post.ID != "" {
+		if post.Status == model.PostStatusCompleted {
+			return &resp.PostQueueResponse{
+				Id:            post.ID,
+				EstimatedTime: 0,
+			}, nil
+		} else if post.Status == model.PostStatusFailed {
+			_ = s.stg.Post(s.ctx).DeleteOne(post)
+		}
 	}
 
 	post = &model.Post{
@@ -117,7 +128,7 @@ func (s *postSvc) GetPostById(id string) (*resp.PostResponse, error) {
 
 	post := *p
 	if post.Status == model.PostStatusFailed {
-		return nil, errs.Newf(errs.Internal, nil, "%s", *post.FailReason)
+		return nil, errs.Newf(errs.Internal, nil, "Failed to insight post. Please try again later.")
 	}
 
 	if post.Status != model.PostStatusCompleted {
@@ -195,7 +206,8 @@ func detectSocialMediaID(url url.URL) model.SocialPlatform {
 
 	// Patterns capture the ID as the first group
 	youtubeRegex := regexp.MustCompile(`(?:https?://)?(?:www\.)?(?:youtube\.com/watch\?v=|youtu\.be/)([\w-]+)`)
-	instagramRegex := regexp.MustCompile(`(?:https?://)?(?:www\.)?instagram\.com/(?:[^/]+/)?(?:p|reels?|tv)/([A-Za-z0-9_-]+)`)
+	//instagramRegex := regexp.MustCompile(`(?:https?://)?(?:www\.)?instagram\.com/(?:[^/]+/)?(?:p|reels?|tv)/([A-Za-z0-9_-]+)`)
+	instagramRegex := regexp.MustCompile(`(?:https?://)?(?:www\.)?instagram\.com/(?:reels?|reel)/([A-Za-z0-9_-]+)`)
 	tiktokRegex := regexp.MustCompile(`(?:https?://)?(?:www\.)?tiktok\.com/@[\w.-]+/video/(\d+)`)
 	twitterRegex := regexp.MustCompile(`(?:https?://)?(?:www\.)?(?:twitter\.com|x\.com)/\w+/status/(\d+)`)
 
@@ -218,7 +230,7 @@ func detectSocialMediaID(url url.URL) model.SocialPlatform {
 func getEstimatedTimeByPlatform(platform model.SocialPlatform) int {
 	switch platform {
 	case model.PlatformInstagram, model.PlatformTikTok, model.PlatformTwitter:
-		return 50
+		return 70
 	case model.PlatformYouTube:
 		return 120
 	default:
