@@ -72,7 +72,7 @@ func (s *postSvc) AddPostToAnalyzeQueue(url url.URL, user *auth.UserInfo, ip net
 	if user.Id == uuid.Nil && post.ID == "" {
 		// check the rate limit
 		requestCount, err := s.stg.Post(s.ctx).CountByIpAndDate(ip, now)
-		if err == nil && requestCount > 2 {
+		if err == nil && requestCount >= 2 {
 			return nil, errs.Newf(errs.PermissionDenied, nil, "payment required")
 		}
 	}

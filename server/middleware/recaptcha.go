@@ -55,7 +55,7 @@ func VerifyRecaptcha(secret string) gin.HandlerFunc {
 			return
 		}
 
-		if result.Score < 0.5 {
+		if result.Score < 0.6 {
 			c.AbortWithStatusJSON(http.StatusForbidden, resp.NewErrorResponse(fmt.Errorf("recaptcha score too low: %f", result.Score)))
 			return
 		}
