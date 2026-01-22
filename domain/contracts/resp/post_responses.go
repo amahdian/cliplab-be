@@ -7,7 +7,7 @@ import (
 )
 
 type PostQueueResponse struct {
-	Id            string `json:"id"`
+	RequestId     string `json:"requestId"`
 	EstimatedTime int    `json:"estimatedTime"`
 }
 
@@ -23,8 +23,8 @@ type PostContentSegmentResponse struct {
 	Speaker              string `json:"speaker"`
 }
 
-type PostResponse struct {
-	Status model.PostStatus `json:"status"`
+type AnalyzeResult struct {
+	Status model.RequestStatus `json:"status"`
 
 	ImageUrl    *string              `json:"imageUrl,omitempty"`
 	VideoUrl    *string              `json:"videoUrl,omitempty"`

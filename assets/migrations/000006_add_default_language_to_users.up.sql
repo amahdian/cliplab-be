@@ -1,3 +1,3 @@
 ALTER TABLE users
-    ADD COLUMN default_language TEXT NOT NULL DEFAULT 'en';
+    ADD COLUMN IF NOT EXISTS default_language TEXT NOT NULL DEFAULT 'en';
 

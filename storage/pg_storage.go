@@ -5,6 +5,7 @@ import "context"
 type PgStorage interface {
 	Metadata(ctx context.Context) MetadataStorage
 	User(ctx context.Context) UserStorage
+	AnalyzeRequest(ctx context.Context) AnalyzeRequestStorage
 	Post(ctx context.Context) PostStorage
 	PostContent(ctx context.Context) PostContentStorage
 	PostAnalysis(ctx context.Context) PostAnalysisStorage

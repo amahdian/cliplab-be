@@ -19,6 +19,10 @@ type AnalysisResponse struct {
 		} `json:"segments"`
 	} `json:"content"`
 	Analysis struct {
+		Scope struct {
+			Level      string `json:"level"`
+			Confidence int    `json:"confidence"`
+		} `json:"scope"`
 		Metrics []struct {
 			Label       string `json:"label"`
 			Score       int    `json:"score"`

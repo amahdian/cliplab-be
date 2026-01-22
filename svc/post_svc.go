@@ -24,12 +24,12 @@ import (
 	"gorm.io/gorm"
 )
 
-type PostSvc interface {
-	AddPostToAnalyzeQueue(url url.URL, user *auth.UserInfo, ip net.IP) (*resp.PostQueueResponse, error)
-	GetPostById(id string) (*resp.PostResponse, error)
+type AnalyzeSvc interface {
+	AddRequestToAnalyzeQueue(url url.URL, user *auth.UserInfo, ip net.IP) (*resp.PostQueueResponse, error)
+	GetAnalyzeResult(id uuid.UUID) (*resp.AnalyzeResult, error)
 }
 
-type postSvc struct {
+type analyzeSvc struct {
 	ctx  context.Context
 	stg  storage.PgStorage
 	envs *env.Envs
@@ -38,13 +38,13 @@ type postSvc struct {
 	RedisClient *redis.Client
 }
 
-func newPostSvc(
+func newAnalyzeSvc(
 	ctx context.Context,
 	stg storage.PgStorage,
 	envs *env.Envs,
 	redisClient *redis.Client,
-	fileSvc FileSvc) PostSvc {
-	return &postSvc{
+	fileSvc FileSvc) AnalyzeSvc {
+	return &analyzeSvc{
 		ctx:         ctx,
 		stg:         stg,
 		envs:        envs,
@@ -53,7 +53,7 @@ func newPostSvc(
 	}
 }
 
-func (s *postSvc) AddPostToAnalyzeQueue(url url.URL, user *auth.UserInfo, ip net.IP) (*resp.PostQueueResponse, error) {
+func (s *analyzeSvc) AddRequestToAnalyzeQueue(url url.URL, user *auth.UserInfo, ip net.IP) (*resp.PostQueueResponse, error) {
 	platform := detectSocialMediaID(url)
 	if platform != model.PlatformInstagram {
 		return nil, errs.Newf(errs.InvalidArgument, nil, "unsupported platform, we only support Instagram reels for now")
@@ -69,55 +69,83 @@ func (s *postSvc) AddPostToAnalyzeQueue(url url.URL, user *auth.UserInfo, ip net
 
 	now := time.Now()
 
-	if user.Id == uuid.Nil && post.ID == "" {
+	if post.ID == "" && user.Id == uuid.Nil {
 		// check the rate limit
-		requestCount, err := s.stg.Post(s.ctx).CountByIpAndDate(ip, now)
+		requestCount, err := s.stg.AnalyzeRequest(s.ctx).CountByIpAndDate(ip, now)
 		if err == nil && requestCount >= 2 {
 			return nil, errs.Newf(errs.PermissionDenied, nil, "payment required")
 		}
 	}
 
-	if post.ID != "" {
-		if post.Status == model.PostStatusCompleted {
-			if post.UpdatedAt.After(now.Add(-12 * time.Hour)) {
-				return &resp.PostQueueResponse{
-					Id:            post.ID,
-					EstimatedTime: 0,
-				}, nil
-			} else {
-				jsonData, _ := json.Marshal(&model.PostQueueData{
-					Id:       post.ID,
-					Url:      post.Link,
-					Platform: platform,
-				})
-				s.RedisClient.LPush(s.ctx, global.RedisPostRenewQueue, jsonData)
+	var analyzeRequest *model.AnalyzeRequest
 
-				return &resp.PostQueueResponse{
-					Id:            post.ID,
-					EstimatedTime: 10,
-				}, nil
-			}
+	// get request for the post
+	var requests []*model.AnalyzeRequest
+	if post.ID != "" {
+		requests, err = s.stg.AnalyzeRequest(s.ctx).ListByPostId(post.ID)
+		if err != nil {
+			return nil, errs.Wrapf(err, "failed to find request by post id %s", post.ID)
 		}
 	}
 
-	post = &model.Post{
-		ID:     shortcode,
-		UserIP: ip.String(),
-		Link:   url.String(),
-		Status: model.PostStatusPending,
+	for _, request := range requests {
+		if user.Id != uuid.Nil && request.UserId != nil && *request.UserId == user.Id {
+			analyzeRequest = request
+			break
+		}
+		if user.Id == uuid.Nil && request.UserId == nil && request.UserIP == ip.String() {
+			analyzeRequest = request
+			break
+		}
+	}
+	if analyzeRequest == nil {
+		analyzeRequest = &model.AnalyzeRequest{
+			UserIP: ip.String(),
+			Link:   url.String(),
+			Status: model.RequestStatusPending,
+		}
+		if user.Id != uuid.Nil {
+			analyzeRequest.UserId = &user.Id
+		}
 	}
 
-	if user.Id != uuid.Nil {
-		post.UserId = &user.Id
+	if len(requests) > 0 {
+		analyzeRequest.Status = requests[0].Status
+	}
+	if post.ID != "" {
+		analyzeRequest.PostId = lo.ToPtr(post.ID)
 	}
 
-	if err := s.stg.Post(s.ctx).UpsertOne(post, false); err != nil {
-		return nil, errs.Newf(errs.Internal, err, "failed to save post")
+	if err := s.stg.AnalyzeRequest(s.ctx).UpsertOne(analyzeRequest, false); err != nil {
+		return nil, errs.Newf(errs.Internal, err, "failed to save analyze requet")
+	}
+
+	if analyzeRequest.Status == model.RequestStatusCompleted {
+		if post.UpdatedAt.After(now.Add(-1200 * time.Hour)) {
+			return &resp.PostQueueResponse{
+				RequestId:     analyzeRequest.ID.String(),
+				EstimatedTime: 0,
+			}, nil
+		} else {
+			jsonData, _ := json.Marshal(&model.PostQueueData{
+				Id:       analyzeRequest.ID,
+				PostId:   analyzeRequest.PostId,
+				Url:      analyzeRequest.Link,
+				Platform: platform,
+			})
+			s.RedisClient.LPush(s.ctx, global.RedisPostRenewQueue, jsonData)
+
+			return &resp.PostQueueResponse{
+				RequestId:     post.ID,
+				EstimatedTime: 10,
+			}, nil
+		}
 	}
 
 	jsonData, err := json.Marshal(&model.PostQueueData{
-		Id:       post.ID,
-		Url:      post.Link,
+		Id:       analyzeRequest.ID,
+		PostId:   analyzeRequest.PostId,
+		Url:      analyzeRequest.Link,
 		Platform: platform,
 	})
 	if err != nil {
@@ -128,29 +156,35 @@ func (s *postSvc) AddPostToAnalyzeQueue(url url.URL, user *auth.UserInfo, ip net
 	}
 
 	return &resp.PostQueueResponse{
-		Id:            post.ID,
+		RequestId:     post.ID,
 		EstimatedTime: estimatedTime,
 	}, nil
 }
 
-func (s *postSvc) GetPostById(id string) (*resp.PostResponse, error) {
-	p, err := s.stg.Post(s.ctx).FindByHashId(id)
+func (s *analyzeSvc) GetAnalyzeResult(id uuid.UUID) (*resp.AnalyzeResult, error) {
+	r, err := s.stg.AnalyzeRequest(s.ctx).FindById(id)
 	if err != nil {
 		return nil, errs.Newf(errs.Internal, err, "failed to find post by id")
 	}
 
-	post := *p
-	if post.Status == model.PostStatusFailed {
+	request := *r
+	if request.Status == model.RequestStatusFailed {
 		return nil, errs.Newf(errs.Internal, nil, "Failed to analyze the post. Please try again later.")
 	}
 
-	if post.Status != model.PostStatusCompleted {
-		return &resp.PostResponse{
-			Status:   post.Status,
+	if request.Status != model.RequestStatusCompleted {
+		return &resp.AnalyzeResult{
+			Status:   request.Status,
 			Platform: model.PlatformInstagram,
 		}, nil
 	}
 
+	p, err := s.stg.Post(s.ctx).FindByHashId(*request.PostId)
+	if err != nil {
+		return nil, errs.Newf(errs.Internal, err, "failed to find post by hash id")
+	}
+
+	post := *p
 	channel, err := s.stg.Channel(s.ctx).FindByHandler(post.UserAnchor)
 	if err != nil {
 		return nil, errs.Newf(errs.Internal, err, "failed to find channel")
@@ -159,9 +193,9 @@ func (s *postSvc) GetPostById(id string) (*resp.PostResponse, error) {
 	er := (float64(post.LikeCount+post.CommentCount) / float64(channel.LastHistory.FollowersCount)) * 100
 	avgER := (float64(channel.LastHistory.AverageLikes+channel.LastHistory.AverageComments) / float64(channel.LastHistory.FollowersCount)) * 100
 
-	res := &resp.PostResponse{
+	res := &resp.AnalyzeResult{
 		Platform:              model.PlatformInstagram,
-		Status:                post.Status,
+		Status:                request.Status,
 		UserLink:              lo.ToPtr(post.UserProfileLink),
 		UserHandler:           lo.ToPtr(post.UserName),
 		ImageUrl:              post.ImageURL,

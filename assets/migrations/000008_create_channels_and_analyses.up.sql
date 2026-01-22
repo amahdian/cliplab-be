@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS post_analyses (
     why_viral TEXT,
     audience_sentiment TEXT,
     sentiment_score INTEGER NOT NULL DEFAULT 0,
+    scope JSONB NOT NULL DEFAULT '{}',
     metrics JSONB NOT NULL DEFAULT '[]',
     strengths JSONB NOT NULL DEFAULT '[]',
     weaknesses JSONB NOT NULL DEFAULT '[]',

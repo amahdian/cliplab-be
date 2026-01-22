@@ -109,6 +109,10 @@ func (stg *Stg) User(ctx context.Context) storage.UserStorage {
 	return NewUserStg(stg.mustOrmSession(ctx))
 }
 
+func (stg *Stg) AnalyzeRequest(ctx context.Context) storage.AnalyzeRequestStorage {
+	return NewAnalyzeRequest(stg.mustOrmSession(ctx))
+}
+
 func (stg *Stg) Post(ctx context.Context) storage.PostStorage {
 	return NewPostStg(stg.mustOrmSession(ctx))
 }

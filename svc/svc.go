@@ -14,7 +14,7 @@ import (
 
 type Svc interface {
 	NewUserSvc(ctx context.Context) UserSvc
-	NewPostSvc(ctx context.Context) PostSvc
+	NewPostSvc(ctx context.Context) AnalyzeSvc
 	NewFileSvc(ctx context.Context) FileSvc
 	NewQueueSvc(ctx context.Context) QueueSvc
 	NewWebSocketSvc(ctx context.Context) WebSocketSvc
@@ -60,8 +60,8 @@ func (s *svcImpl) NewFileSvc(ctx context.Context) FileSvc {
 	return newFileSvc(ctx, s.storageConfig)
 }
 
-func (s *svcImpl) NewPostSvc(ctx context.Context) PostSvc {
-	return newPostSvc(ctx, s.pgStg, s.Envs, s.redisClient, s.NewFileSvc(ctx))
+func (s *svcImpl) NewPostSvc(ctx context.Context) AnalyzeSvc {
+	return newAnalyzeSvc(ctx, s.pgStg, s.Envs, s.redisClient, s.NewFileSvc(ctx))
 }
 
 func (s *svcImpl) NewQueueSvc(ctx context.Context) QueueSvc {

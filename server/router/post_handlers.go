@@ -7,9 +7,10 @@ import (
 	"github.com/amahdian/cliplab-be/domain/contracts/resp"
 	"github.com/amahdian/cliplab-be/global/errs"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
-func (r *Router) addPostToAnalyzeQueue(ctx *gin.Context) {
+func (r *Router) addRequestToAnalyzeQueue(ctx *gin.Context) {
 	reqCtx := req.GetRequestContext(ctx)
 	user := reqCtx.UserInfo
 
@@ -26,7 +27,7 @@ func (r *Router) addPostToAnalyzeQueue(ctx *gin.Context) {
 	}
 
 	dSvc := r.svc.NewPostSvc(reqCtx.Ctx)
-	id, err := dSvc.AddPostToAnalyzeQueue(*link, user, reqCtx.Ip)
+	id, err := dSvc.AddRequestToAnalyzeQueue(*link, user, reqCtx.Ip)
 	if err != nil {
 		resp.AbortWithError(ctx, err)
 		return
@@ -35,7 +36,7 @@ func (r *Router) addPostToAnalyzeQueue(ctx *gin.Context) {
 	resp.Ok(ctx, id)
 }
 
-func (r *Router) getPostData(ctx *gin.Context) {
+func (r *Router) getAnalyzeResult(ctx *gin.Context) {
 	reqCtx := req.GetRequestContext(ctx)
 
 	request := &req.IdUri{}
@@ -44,8 +45,13 @@ func (r *Router) getPostData(ctx *gin.Context) {
 		return
 	}
 
+	analyzeId, err := uuid.Parse(request.Id)
+	if err != nil {
+		resp.AbortWithError(ctx, err)
+	}
+
 	dSvc := r.svc.NewPostSvc(reqCtx.Ctx)
-	post, err := dSvc.GetPostById(request.Id)
+	post, err := dSvc.GetAnalyzeResult(analyzeId)
 	if err != nil {
 		resp.AbortWithError(ctx, err)
 		return

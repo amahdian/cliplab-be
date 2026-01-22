@@ -24,7 +24,7 @@ type Client interface {
 		averageStats map[string]float64,
 		publishedAt time.Time,
 		targetRegion string,
-	) (*AnalysisResponse, error)
+	) (string, string, *AnalysisResponse, error)
 }
 
 type client struct {
@@ -54,7 +54,7 @@ func (c *client) AnalyzeVideo(
 	averageStats map[string]float64,
 	publishedAt time.Time,
 	targetRegion string,
-) (*AnalysisResponse, error) {
+) (string, string, *AnalysisResponse, error) {
 
 	currentTime := time.Now().Format(time.RFC1123)
 	pubTime := publishedAt.Format(time.RFC1123)
@@ -102,23 +102,45 @@ MANDATORY ANALYSIS RULES
   or clearly penetrates non-follower feeds.
 - Funnel effectiveness ≠ Virality.
 
-5. TOPIC SCORING
+5. TOPIC SCORING (TIME + REGION + SCOPE AWARE)
 - When searching for current trends or waves, ALWAYS take into account:
   - Publish Time %s
   - Target Region %s
   - Any recognizable personalities or celebrities detected in the video frames
-- Only assign Topic Score 90+ if Web Search confirms a current cultural wave/event relevant to that time and region.
-- If no wave is detected, classify topic as Evergreen/Saturated and score conservatively (≤80).
+- Determine the topic scope as one of the following:
+  - Local (city, campus, community-specific)
+  - National / Regional
+  - Global
+- Topic scope MUST influence Topic Score:
+  - Local topics have limited viral ceiling and should be scored conservatively.
+  - National topics may score higher if engagement depth is strong.
+  - Global topics may score highest ONLY if Web Search confirms a real-time wave.
+- Only assign Topic Score 90+ if Web Search confirms a current cultural wave/event
+  relevant to the publish time, target region, AND topic scope.
+- If no wave is detected, classify topic as Evergreen/Saturated and score ≤80.
+- Boost the Topic Score ONLY if a trending song/sound is detected and confirmed
+  to be peaking around the publish time in the target region.
+
+6. SCOPE CLASSIFICATION (MANDATORY)
+- Infer the content distribution scope as one of: Local, National, or Global.
+- Scope should be derived from language, cultural references, detected personalities, hashtags, and web trend validation.
+- Scope confidence reflects how strongly signals align with that classification.
+
 
 --------------------------------
 SEARCH STRATEGY (REQUIRED)
 --------------------------------
 
 - Analyze the video frames to detect any recognizable personalities or celebrities.
+- Infer topic scope (Local / National / Global) using:
+  - Video content and language
+  - Detected personalities
+  - Hashtags and locations
+  - Audience comments
 - Use Google Search (or another reliable source) to verify:
   1. Whether the topic is currently trending **at the time of publish** (%s) in the **target region** (%s).
-  2. Whether similar narratives, challenges, or sounds are peaking or declining in that region/time.
-  3. If the content is riding a sound, challenge, or event wave relevant to the region/time.
+  2. Whether the detected topic scope aligns with search interest (Local vs National vs Global).
+  3. Whether similar narratives, challenges, sounds, or events (concerts, movie releases, trending news) are peaking or declining.
 - If no wave is detected → classify as Evergreen/Saturated.
 
 --------------------------------
@@ -148,6 +170,10 @@ Scores must be realistic and justified.
     ]
   },
   "analysis": {
+    "scope": {
+      "level": "Local | National | Global",
+      "confidence": 0-100
+    },
     "metrics": [
       {
         "label": "Hook Strength | Topic Potential | Pacing | Value Delivery | Shareability | CTA",
@@ -165,10 +191,10 @@ Scores must be realistic and justified.
   },
   "remix": {
     "hook_ideas": [
-      "3 alternative opening hooks that are sharper or more disruptive"
+      "Provide 3 alternative opening hooks. Each hook must be a fully written, 1–2 sentence spoken line designed to capture attention within the first 3 seconds. Hooks should be emotionally disruptive or curiosity-driven, not vague concepts."
     ],
     "script_ideas": [
-      "3 alternative script angles or narratives"
+      "Provide 3 fully written alternative scripts. Each script must be a complete, ready-to-record short-form video script including: a strong opening hook, a clear narrative flow, emotional progression, and a clear CTA. Scripts should be written as natural spoken dialogue, not bullet points or summaries."
     ]
   },
   "publish": {
@@ -251,6 +277,13 @@ FINAL INSTRUCTIONS
 					"analysis": map[string]interface{}{
 						"type": "OBJECT",
 						"properties": map[string]interface{}{
+							"score": map[string]interface{}{
+								"type": "OBJECT",
+								"properties": map[string]interface{}{
+									"level":      map[string]interface{}{"type": "STRING"},
+									"confidence": map[string]interface{}{"type": "INTEGER", "description": "0 to 100"},
+								},
+							},
 							"metrics": map[string]interface{}{
 								"type": "ARRAY",
 								"items": map[string]interface{}{
@@ -296,13 +329,13 @@ FINAL INSTRUCTIONS
 
 	body, err := json.Marshal(requestBody)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal request body")
+		return string(body), "", nil, errors.Wrap(err, "failed to marshal request body")
 	}
 
 	endpoint := "/v1beta/models/gemini-2.5-flash:generateContent"
 	resp, err := c.doPost(endpoint, body, nil)
 	if err != nil {
-		return nil, err
+		return string(body), "", nil, err
 	}
 	defer resp.Body.Close()
 
@@ -318,7 +351,7 @@ FINAL INSTRUCTIONS
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&googleResp); err != nil {
-		return nil, errors.Wrap(err, "failed to decode google response")
+		return string(body), "", nil, errors.Wrap(err, "failed to decode google response")
 	}
 
 	if len(googleResp.Candidates) == 0 || len(googleResp.Candidates[0].Content.Parts) == 0 {
@@ -331,10 +364,12 @@ FINAL INSTRUCTIONS
 		}
 
 		if err := json.NewDecoder(resp.Body).Decode(&apiErr); err == nil && apiErr.Error.Code != 0 {
-			return nil, errs.Newf(errs.Internal, err, apiErr.Error.Message)
+			e, _ := json.Marshal(apiErr)
+			return string(body), string(e), nil, errs.Newf(errs.Internal, err, apiErr.Error.Message)
 		}
 
-		return nil, errors.New("google api returned no candidates and no error details")
+		m := "google api returned no candidates and no error details"
+		return string(body), m, nil, errors.New(m)
 	}
 
 	// 5. Unmarshal the actual JSON string from the response part into our struct
@@ -347,10 +382,11 @@ FINAL INSTRUCTIONS
 	actualJson = strings.TrimSpace(actualJson)
 
 	if err := json.Unmarshal([]byte(actualJson), &finalResult); err != nil {
-		return nil, errors.Wrap(err, "failed to unmarshal analysis result")
+		m := errors.Wrap(err, "failed to unmarshal analysis result")
+		return string(body), m.Error(), nil, m
 	}
 
-	return &finalResult, nil
+	return string(body), actualJson, &finalResult, nil
 }
 
 func (c *client) doPost(endpoint string, body []byte, headers map[string]string) (*http.Response, error) {

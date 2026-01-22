@@ -14,13 +14,14 @@ import (
 	"github.com/amahdian/cliplab-be/pkg/logger"
 	"github.com/amahdian/cliplab-be/storage"
 	"github.com/amahdian/cliplab-be/svc/utils"
+	"github.com/google/uuid"
 	"github.com/pemistahl/lingua-go"
 	"github.com/samber/lo"
 )
 
 type QueueSvc interface {
-	ProcessPost(url, id string, platform model.SocialPlatform) error
-	RenewPost(url, id string, platform model.SocialPlatform) error
+	ProcessRequest(url string, requestId uuid.UUID, platform model.SocialPlatform) error
+	RenewPost(url string, requestId uuid.UUID, platform model.SocialPlatform) error
 }
 
 type postQueueSvc struct {
@@ -42,161 +43,120 @@ func newPostQueueSvc(ctx context.Context, stg storage.PgStorage, envs *env.Envs,
 	}
 }
 
-func (s *postQueueSvc) ProcessPost(url, id string, platform model.SocialPlatform) error {
+func (s *postQueueSvc) ProcessRequest(url string, requestId uuid.UUID, platform model.SocialPlatform) error {
 	logger.Debug("Processing post:", url)
 
-	post, err := s.stg.Post(s.ctx).FindByHashId(id)
+	request, err := s.stg.AnalyzeRequest(s.ctx).FindById(requestId)
 	if err != nil {
 		return err
 	}
 
-	switch platform {
-	case model.PlatformInstagram:
-		s.processInstagramScrap(post)
+	var post *model.Post
+	if request.PostId != nil {
+		post, err = s.stg.Post(s.ctx).FindByHashId(*request.PostId)
+		if err != nil {
+			return err
+		}
+	} else {
+		shortcode := utils.GetInstagramShortcode(request.Link)
+		post = &model.Post{
+			ID:   shortcode,
+			Link: request.Link,
+		}
 	}
 
-	return nil
+	request.Status = model.RequestStatusProcessing
+	_ = s.stg.AnalyzeRequest(s.ctx).UpdateOne(request, false)
+
+	switch platform {
+	case model.PlatformInstagram:
+		reelDto, otherReelsDto, err := s.renewInstagramScrap(post)
+		if err != nil {
+			request.Status = model.RequestStatusFailed
+			request.FailReason = lo.ToPtr(err.Error())
+			_ = s.stg.AnalyzeRequest(s.ctx).UpdateOne(request, false)
+			return err
+		} else {
+			err = s.processInstagramScrap(request, reelDto, otherReelsDto)
+			if err != nil {
+				request.Status = model.RequestStatusFailed
+				request.FailReason = lo.ToPtr(err.Error())
+				_ = s.stg.AnalyzeRequest(s.ctx).UpdateOne(request, false)
+				return err
+			}
+		}
+		break
+	}
+
+	request.FailReason = nil
+	request.Status = model.RequestStatusCompleted
+
+	_ = s.stg.AnalyzeRequest(s.ctx).UpdateOne(request, false)
+
+	return err
 }
 
-func (s *postQueueSvc) RenewPost(url, id string, platform model.SocialPlatform) error {
+func (s *postQueueSvc) RenewPost(url string, requestId uuid.UUID, platform model.SocialPlatform) error {
 	logger.Debug("Renew post stats:", url)
 
-	post, err := s.stg.Post(s.ctx).FindByHashId(id)
+	request, err := s.stg.AnalyzeRequest(s.ctx).FindById(requestId)
+	if err != nil {
+		return err
+	}
+
+	request.Status = model.RequestStatusProcessing
+	_ = s.stg.AnalyzeRequest(s.ctx).UpdateOne(request, false)
+
+	post, err := s.stg.Post(s.ctx).FindByHashId(*request.PostId)
 	if err != nil {
 		return err
 	}
 
 	switch platform {
 	case model.PlatformInstagram:
-		s.renewInstagramScrap(post)
+		_, _, err = s.renewInstagramScrap(post)
 	}
 
-	return nil
+	if err != nil {
+		request.Status = model.RequestStatusFailed
+		request.FailReason = lo.ToPtr(err.Error())
+	} else {
+		request.Status = model.RequestStatusCompleted
+	}
+
+	_ = s.stg.AnalyzeRequest(s.ctx).UpdateOne(request, false)
+
+	return err
 }
 
-func (s *postQueueSvc) processInstagramScrap(post *model.Post) {
-	if post.Status != model.PostStatusPending {
-		return
-	}
-
-	shortcode := utils.GetInstagramShortcode(post.Link)
-
-	dto, err := s.ScraperClient.GetInstagramPost(shortcode)
-	if err != nil {
-		post.FailReason = lo.ToPtr(err.Error())
-		post.Status = model.PostStatusFailed
-		_ = s.stg.Post(s.ctx).UpdateOne(post, false)
-		return
-	}
-
-	// 1. Update initial post info
-	post.Status = model.PostStatusProcessing
-	post.UserName = dto.Owner.FullName
-	post.UserAnchor = dto.Owner.Username
-	post.UserProfileLink = fmt.Sprintf("https://instagram.com/%s", dto.Owner.Username)
-	post.PostDate = time.Unix(dto.TakenAtTimestamp, 0)
-	post.ImageURL = &dto.ThumbnailSrc
-	post.VideoURL = &dto.VideoURL
-
-	post.LikeCount = dto.EdgeMediaPreviewLike.Count
-	post.CommentCount = dto.EdgeMediaToParentComment.Count
-	post.VideoViewCount = int64(dto.VideoViewCount)
-	post.VideoPlayCount = int64(dto.VideoPlayCount)
-
-	if post.ChannelId == nil {
-		channel, _ := s.stg.Channel(s.ctx).FindByHandler(dto.Owner.Username)
-		if channel == nil {
-			channel = &model.Channel{
-				FullName: dto.Owner.FullName,
-				Handler:  dto.Owner.Username,
-				Platform: model.PlatformInstagram,
-			}
-			_ = s.stg.Channel(s.ctx).CreateOne(channel)
-		}
-
-		post.ChannelId = &channel.ID
-	}
-
-	_ = s.stg.Post(s.ctx).UpdateOne(post, false)
-
-	if dto.VideoURL == "" {
-		return
-	}
-
-	otherVideos, err := s.ScraperClient.GetInstagramPageReels(post.UserAnchor)
-	if err != nil {
-		post.FailReason = lo.ToPtr(err.Error())
-		post.Status = model.PostStatusFailed
-		_ = s.stg.Post(s.ctx).UpdateOne(post, false)
-		return
-	}
-
-	// 1.5 Save channel history
-	totalLike := int64(0)
-	totalComment := int64(0)
-	totalViewCount := int64(0)
-	totalPlayCount := int64(0)
-	for _, reel := range otherVideos.Reels {
-		totalLike += reel.Node.Media.LikeCount
-		totalComment += reel.Node.Media.CommentCount
-		totalPlayCount += reel.Node.Media.PlayCount
-	}
-
-	avgLikes := int64(0)
-	avgComments := int64(0)
-	avgViews := int64(0)
-	avgPlays := int64(0)
-	if len(otherVideos.Reels) > 0 {
-		avgLikes = totalLike / int64(len(otherVideos.Reels))
-		avgComments = totalComment / int64(len(otherVideos.Reels))
-		avgViews = totalViewCount / int64(len(otherVideos.Reels))
-		avgPlays = totalPlayCount / int64(len(otherVideos.Reels))
-	}
-
-	_ = s.stg.ChannelHistory(s.ctx).CreateOne(&model.ChannelHistory{
-		ChannelID:         *post.ChannelId,
-		FollowersCount:    dto.Owner.EdgeFollowedBy.Count,
-		MediaCount:        dto.Owner.EdgeOwnerToTimelineMedia.Count,
-		AverageLikes:      avgLikes,
-		AverageComments:   avgComments,
-		AverageVideoViews: avgViews,
-		AverageVideoPlays: avgPlays,
-	})
-
+func (s *postQueueSvc) processInstagramScrap(request *model.AnalyzeRequest, reelDto *rocksolid.ReelData, otherReelsDto *rocksolid.Reels) error {
 	detector := lingua.NewLanguageDetectorBuilder().FromAllSpokenLanguages().Build()
 
 	// 2. Get Advanced Video Analysis from Gemini
-	analysis, err := s.getInstagramVideoAnalysis(*dto, *otherVideos, detector)
+	llmRequest, llmResponse, analysis, err := s.getInstagramVideoAnalysis(*reelDto, *otherReelsDto, detector)
+	request.LlmRequest = llmRequest
+	request.LlmResponse = llmResponse
+	_ = s.stg.AnalyzeRequest(s.ctx).UpdateOne(request, false)
+
 	if err != nil {
 		failReason := fmt.Sprintf("Gemini analysis failed: %s", err.Error())
-		logger.Error(failReason)
-
-		post.Status = model.PostStatusFailed
-		post.FailReason = lo.ToPtr(failReason)
-		_ = s.stg.Post(s.ctx).UpdateOne(post, false)
-		return
+		return errs.Wrapf(err, "Gemini analysis failed: %s", failReason)
 	}
 	if analysis == nil {
-		failReason := "Gemini analysis is empty"
-		logger.Error(failReason)
-
-		post.FailReason = lo.ToPtr(failReason)
-		post.Status = model.PostStatusFailed
-		return
+		return errs.Newf(errs.Internal, nil, "Gemini analysis is empty")
 	}
 
 	// 3. Prepare PostContent slice
 	var contents []*model.PostContent
 
-	// A. Add Caption (from Instagram DTO)
-	if len(dto.EdgeMediaToCaption.Edges) > 0 {
-		lang, _ := detector.DetectLanguageOf(dto.EdgeMediaToCaption.Edges[0].Node.Text)
+	// A. Add Caption (from Instagram reelDto)
+	if len(reelDto.EdgeMediaToCaption.Edges) > 0 {
+		lang, _ := detector.DetectLanguageOf(reelDto.EdgeMediaToCaption.Edges[0].Node.Text)
 		contents = append(contents, &model.PostContent{
-			PostID:   post.ID,
+			PostID:   *request.PostId,
 			Type:     model.ContentCaption,
-			Text:     dto.EdgeMediaToCaption.Edges[0].Node.Text,
+			Text:     reelDto.EdgeMediaToCaption.Edges[0].Node.Text,
 			Language: lang.IsoCode639_1().String(),
-			Status:   model.PostStatusCompleted,
 		})
 	}
 
@@ -206,11 +166,10 @@ func (s *postQueueSvc) processInstagramScrap(post *model.Post) {
 			lang, _ := detector.DetectLanguageOf(seg.Content)
 
 			contents = append(contents, &model.PostContent{
-				PostID:   post.ID,
+				PostID:   *request.PostId,
 				Type:     model.ContentTranscript,
 				Text:     seg.Content,
 				Language: lang.IsoCode639_1().String(),
-				Status:   model.PostStatusCompleted,
 				Metadata: &model.SegmentPostContentMetadata{
 					Timestamp: seg.Timestamp,
 					Speaker:   seg.Speaker,
@@ -234,7 +193,7 @@ func (s *postQueueSvc) processInstagramScrap(post *model.Post) {
 
 	// 5. Save Post Analysis
 	postAnalysis := &model.PostAnalysis{
-		PostId:            post.ID,
+		PostId:            *request.PostId,
 		BigIdea:           analysis.Summary.BigIdea,
 		WhyViral:          analysis.Summary.WhyViral,
 		AudienceSentiment: analysis.Summary.AudienceSentiment,
@@ -292,34 +251,25 @@ func (s *postQueueSvc) processInstagramScrap(post *model.Post) {
 		}
 	}
 
-	postAnalysis.ViralScore = int(getViralScore(topicScore, hookScore, pacingScore, valueDeliveryScore, shareabilityScore, ctaScore))
+	postAnalysis.ViralScore = int(getViralScore(
+		topicScore, hookScore, pacingScore, valueDeliveryScore,
+		shareabilityScore, ctaScore,
+		analysis.Analysis.Scope.Confidence, analysis.Analysis.Scope.Level))
 
 	if err = s.stg.PostAnalysis(s.ctx).CreateOne(postAnalysis); err != nil {
 		logger.Error("Failed to save post analysis:", err)
 	}
 
-	// 6. Finalize Post status
-	post.Status = model.PostStatusCompleted
-	_ = s.stg.Post(s.ctx).UpdateOne(post, false)
+	return nil
 }
 
-func (s *postQueueSvc) renewInstagramScrap(post *model.Post) {
-	if post.Status != model.PostStatusCompleted {
-		return
-	}
-
-	shortcode := utils.GetInstagramShortcode(post.Link)
-
-	dto, err := s.ScraperClient.GetInstagramPost(shortcode)
+func (s *postQueueSvc) renewInstagramScrap(post *model.Post) (*rocksolid.ReelData, *rocksolid.Reels, error) {
+	dto, err := s.ScraperClient.GetInstagramPost(post.ID)
 	if err != nil {
-		post.FailReason = lo.ToPtr(err.Error())
-		post.Status = model.PostStatusFailed
-		_ = s.stg.Post(s.ctx).UpdateOne(post, false)
-		return
+		return nil, nil, err
 	}
 
 	// 1. Update initial post info
-	post.Status = model.PostStatusProcessing
 	post.UserName = dto.Owner.FullName
 	post.UserAnchor = dto.Owner.Username
 	post.UserProfileLink = fmt.Sprintf("https://instagram.com/%s", dto.Owner.Username)
@@ -349,15 +299,12 @@ func (s *postQueueSvc) renewInstagramScrap(post *model.Post) {
 	_ = s.stg.Post(s.ctx).UpdateOne(post, false)
 
 	if dto.VideoURL == "" {
-		return
+		return dto, nil, nil
 	}
 
-	otherVideos, err := s.ScraperClient.GetInstagramPageReels(post.UserAnchor)
+	otherReelsDto, err := s.ScraperClient.GetInstagramPageReels(post.UserAnchor)
 	if err != nil {
-		post.FailReason = lo.ToPtr(err.Error())
-		post.Status = model.PostStatusFailed
-		_ = s.stg.Post(s.ctx).UpdateOne(post, false)
-		return
+		return dto, nil, err
 	}
 
 	// 1.5 Save channel history
@@ -365,7 +312,7 @@ func (s *postQueueSvc) renewInstagramScrap(post *model.Post) {
 	totalComment := int64(0)
 	totalViewCount := int64(0)
 	totalPlayCount := int64(0)
-	for _, reel := range otherVideos.Reels {
+	for _, reel := range otherReelsDto.Reels {
 		totalLike += reel.Node.Media.LikeCount
 		totalComment += reel.Node.Media.CommentCount
 		totalPlayCount += reel.Node.Media.PlayCount
@@ -375,11 +322,11 @@ func (s *postQueueSvc) renewInstagramScrap(post *model.Post) {
 	avgComments := int64(0)
 	avgViews := int64(0)
 	avgPlays := int64(0)
-	if len(otherVideos.Reels) > 0 {
-		avgLikes = totalLike / int64(len(otherVideos.Reels))
-		avgComments = totalComment / int64(len(otherVideos.Reels))
-		avgViews = totalViewCount / int64(len(otherVideos.Reels))
-		avgPlays = totalPlayCount / int64(len(otherVideos.Reels))
+	if len(otherReelsDto.Reels) > 0 {
+		avgLikes = totalLike / int64(len(otherReelsDto.Reels))
+		avgComments = totalComment / int64(len(otherReelsDto.Reels))
+		avgViews = totalViewCount / int64(len(otherReelsDto.Reels))
+		avgPlays = totalPlayCount / int64(len(otherReelsDto.Reels))
 	}
 
 	_ = s.stg.ChannelHistory(s.ctx).CreateOne(&model.ChannelHistory{
@@ -392,11 +339,12 @@ func (s *postQueueSvc) renewInstagramScrap(post *model.Post) {
 		AverageVideoPlays: avgPlays,
 	})
 
-	post.Status = model.PostStatusCompleted
 	_ = s.stg.Post(s.ctx).UpdateOne(post, false)
+
+	return dto, otherReelsDto, nil
 }
 
-func (s *postQueueSvc) getInstagramVideoAnalysis(dto rocksolid.ReelData, otherVideos rocksolid.Reels, detector lingua.LanguageDetector) (*gemini.AnalysisResponse, error) {
+func (s *postQueueSvc) getInstagramVideoAnalysis(dto rocksolid.ReelData, otherReelsDto rocksolid.Reels, detector lingua.LanguageDetector) (string, string, *gemini.AnalysisResponse, error) {
 
 	// 2. We usually analyze the main video (first one) or the longest one.
 	// Instagram carousels might have multiple videos, but for MVP we process the primary one.
@@ -432,7 +380,7 @@ func (s *postQueueSvc) getInstagramVideoAnalysis(dto rocksolid.ReelData, otherVi
 	totalComment := int64(0)
 	totalViewCount := int64(0)
 	totalPlayCount := int64(0)
-	for _, reel := range otherVideos.Reels {
+	for _, reel := range otherReelsDto.Reels {
 		totalLike += reel.Node.Media.LikeCount
 		totalComment += reel.Node.Media.CommentCount
 		totalViewCount += reel.Node.Media.ViewCount
@@ -440,13 +388,13 @@ func (s *postQueueSvc) getInstagramVideoAnalysis(dto rocksolid.ReelData, otherVi
 	}
 
 	averageStats := map[string]float64{}
-	if len(otherVideos.Reels) > 0 && totalLike > 0 {
+	if len(otherReelsDto.Reels) > 0 && totalLike > 0 {
 		averageStats = map[string]float64{
 			"follower_count":          float64(dto.Owner.EdgeFollowedBy.Count),
-			"average_like_count":      float64(totalLike) / float64(len(otherVideos.Reels)),
-			"average_comment_count":   float64(totalComment) / float64(len(otherVideos.Reels)),
-			"average_play_count":      float64(totalPlayCount) / float64(len(otherVideos.Reels)),
-			"average_engagement_rate": (float64(totalLike+totalComment) / float64(int64(len(otherVideos.Reels))*dto.Owner.EdgeFollowedBy.Count)) * 100,
+			"average_like_count":      float64(totalLike) / float64(len(otherReelsDto.Reels)),
+			"average_comment_count":   float64(totalComment) / float64(len(otherReelsDto.Reels)),
+			"average_play_count":      float64(totalPlayCount) / float64(len(otherReelsDto.Reels)),
+			"average_engagement_rate": (float64(totalLike+totalComment) / float64(int64(len(otherReelsDto.Reels))*dto.Owner.EdgeFollowedBy.Count)) * 100,
 		}
 	}
 
@@ -454,7 +402,7 @@ func (s *postQueueSvc) getInstagramVideoAnalysis(dto rocksolid.ReelData, otherVi
 
 	// 3. Call the Gemini client using the direct URL
 	// We pass "Instagram" as the platform context
-	result, err := s.GeminiClient.AnalyzeVideo(
+	llmRequest, llmResponse, result, err := s.GeminiClient.AnalyzeVideo(
 		model.PlatformInstagram,
 		targetVideo,
 		caption,
@@ -466,15 +414,15 @@ func (s *postQueueSvc) getInstagramVideoAnalysis(dto rocksolid.ReelData, otherVi
 		language)
 	if err != nil {
 		logger.Errorf("Failed to analyze video via Gemini: %v", err)
-		return nil, errs.Newf(errs.Internal, err, "failed to analyze video content")
+		return llmRequest, llmResponse, nil, errs.Newf(errs.Internal, err, "failed to analyze video content")
 	}
 
 	logger.Infof("Finished analysis for video: %s", targetVideo)
 
-	return result, nil
+	return llmRequest, llmResponse, result, nil
 }
 
-func getViralScore(topicScore, hookScore, pacingScore, valueDeliveryScore, shareabilityScore, ctaScore int) float64 {
+func getViralScore(topicScore, hookScore, pacingScore, valueDeliveryScore, shareabilityScore, ctaScore, scopeConfidence int, scope string) float64 {
 	t := float64(topicScore)
 	h := float64(hookScore)
 	p := float64(pacingScore)
@@ -484,11 +432,24 @@ func getViralScore(topicScore, hookScore, pacingScore, valueDeliveryScore, share
 
 	gateMultiplier := 1.0
 	if t < 60 || s < 60 {
-		gateMultiplier = 0.6 // کاهش شدید نمره
+		gateMultiplier = 0.6
+	}
+
+	scopeMultiplier := 1.0
+
+	if scopeConfidence >= 70 {
+		switch scope {
+		case "Local":
+			scopeMultiplier = 0.75
+		case "National":
+			scopeMultiplier = 0.9
+		case "Global":
+			scopeMultiplier = 1.0
+		}
 	}
 
 	// Base weighted score
-	score := (h*0.25 + t*0.2 + p*0.15 + v*0.15 + s*0.15 + c*0.1) * gateMultiplier
+	score := (h*0.25 + t*0.2 + p*0.15 + v*0.15 + s*0.15 + c*0.1) * gateMultiplier * scopeMultiplier
 
 	if c > 90 && s < 70 {
 		score *= 0.85

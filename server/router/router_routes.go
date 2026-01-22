@@ -16,7 +16,7 @@ func (r *Router) setupRoutes() {
 
 	r.registerPublicRoutes()
 	r.registerUserRoutes()
-	r.registerPostRoutes()
+	r.registerAnalyzeRoutes()
 	r.registerWebSocketRoutes()
 }
 
@@ -36,10 +36,11 @@ func (r *Router) registerUserRoutes() {
 	r.registerRoute(r.authGroup, http.MethodGet, "/users/me", r.me, config)
 }
 
-func (r *Router) registerPostRoutes() {
+func (r *Router) registerAnalyzeRoutes() {
 	config := newRouteConfig()
-	r.registerRoute(r.publicGroup, http.MethodPost, "/posts/analyze", r.addPostToAnalyzeQueue, config.withMiddlewares(middleware.VerifyRecaptcha(r.configs.Recaptcha.Secret)))
-	r.registerRoute(r.publicGroup, http.MethodGet, "/posts/:id", r.getPostData, config)
+	//r.registerRoute(r.publicGroup, http.MethodPost, "/analyze", r.addRequestToAnalyzeQueue, config)
+	r.registerRoute(r.publicGroup, http.MethodPost, "/analyze", r.addRequestToAnalyzeQueue, config.withMiddlewares(middleware.VerifyRecaptcha(r.configs.Recaptcha.Secret)))
+	r.registerRoute(r.publicGroup, http.MethodGet, "/analyze/:id", r.getAnalyzeResult, config)
 }
 
 func (r *Router) registerWebSocketRoutes() {

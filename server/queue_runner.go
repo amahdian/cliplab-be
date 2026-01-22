@@ -39,7 +39,7 @@ func handleMessage(channel, payload string, svc svc.Svc) {
 			logger.Error("invalid queue payload:", err)
 			return
 		}
-		err := qSvc.ProcessPost(data.Url, data.Id, data.Platform)
+		err := qSvc.ProcessRequest(data.Url, data.Id, data.Platform)
 		if err != nil {
 			logger.Error("Failed to process post:", err)
 		}

@@ -22,9 +22,6 @@ type PostContent struct {
 	Type     PostContentType `json:"type"`
 	Language string          `json:"language"`
 
-	Status     PostStatus `json:"status"`
-	FailReason *string    `json:"failReason"`
-
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 
