@@ -6,6 +6,10 @@ type AnalysisResponse struct {
 		WhyViral          string `json:"why_viral"`
 		AudienceSentiment string `json:"audience_sentiment"`
 		SentimentScore    int    `json:"sentiment_score"`
+		Verdict           struct {
+			Status    string `json:"status"`
+			Reasoning string `json:"reasoning"` // "GREEN LIGHT", "REMIX REQUIRED", or "FLOP RISK"
+		} `json:"verdict"`
 	} `json:"summary"`
 	Content struct {
 		Hook     string `json:"hook"`

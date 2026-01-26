@@ -156,7 +156,11 @@ Scores must be realistic and justified.
     "big_idea": "The core message/value proposition.",
     "why_viral": "Explain whether it truly went viral or what psychological trigger it relies on instead.",
     "audience_sentiment": "Deep analysis of how the audience emotionally and cognitively reacted.",
-    "sentiment_score": 0-100
+    "sentiment_score": 0-100,
+	"verdict": {
+		"status": (Must be one of: "GREEN LIGHT", "REMIX REQUIRED", or "FLOP RISK"),
+		"reasoning": (A punchy 1-2 sentence executive summary explaining WHY this status was chosen. Focus on the gap between current stats and viral potential).
+	}
   },
   "content": {
     "hook": "Detailed analysis of the first 3 seconds including visual hook, verbal hook, and any pattern interruption.",
@@ -254,6 +258,17 @@ FINAL INSTRUCTIONS
 							"why_viral":          map[string]interface{}{"type": "STRING"},
 							"audience_sentiment": map[string]interface{}{"type": "STRING"},
 							"sentiment_score":    map[string]interface{}{"type": "INTEGER", "description": "0 to 100 scale of audience sentiment"},
+							"verdict": map[string]interface{}{
+								"type": "OBJECT",
+								"properties": map[string]interface{}{
+									"status": map[string]interface{}{
+										"type": "STRING",
+										"enum": []string{"GREEN LIGHT", "REMIX REQUIRED", "FLOP RISK"},
+									},
+									"reasoning": map[string]interface{}{"type": "STRING"},
+								},
+								"required": []string{"status", "reasoning"},
+							},
 						},
 					},
 					"content": map[string]interface{}{

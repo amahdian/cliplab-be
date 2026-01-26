@@ -10,11 +10,12 @@ type PostAnalysis struct {
 	ID     uuid.UUID `json:"id" gorm:"type:uuid;default:uuid_generate_v4();primaryKey"`
 	PostId string    `json:"postId" `
 
-	ViralScore        int    `json:"viralScore"`
-	BigIdea           string `json:"bigIdea"`
-	WhyViral          string `json:"whyViral"`
-	AudienceSentiment string `json:"audienceSentiment"`
-	SentimentScore    int    `json:"sentimentScore"`
+	ViralScore        int         `json:"viralScore"`
+	BigIdea           string      `json:"bigIdea"`
+	WhyViral          string      `json:"whyViral"`
+	AudienceSentiment string      `json:"audienceSentiment"`
+	SentimentScore    int         `json:"sentimentScore"`
+	Verdict           PostVerdict `json:"verdict"`
 
 	Metrics    []PostAnalysisMetric `json:"metrics" gorm:"serializer:json"`
 	Strengths  []string             `json:"strengths" gorm:"serializer:json"`
@@ -43,6 +44,11 @@ type PostAnalysisCaptions struct {
 	Casual       string `json:"casual"`
 	Professional string `json:"professional"`
 	Viral        string `json:"viral"`
+}
+
+type PostVerdict struct {
+	Status    string `json:"status"`
+	Reasoning string `json:"reasoning"`
 }
 
 func (*PostAnalysis) TableName() string {

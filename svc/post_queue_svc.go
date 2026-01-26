@@ -198,6 +198,7 @@ func (s *postQueueSvc) processInstagramScrap(request *model.AnalyzeRequest, reel
 		WhyViral:          analysis.Summary.WhyViral,
 		AudienceSentiment: analysis.Summary.AudienceSentiment,
 		SentimentScore:    analysis.Summary.SentimentScore,
+		Verdict:           analysis.Summary.Verdict,
 		Strengths:         analysis.Analysis.Strengths,
 		Weaknesses:        analysis.Analysis.Weaknesses,
 		HookIdeas:         analysis.Remix.HookIdeas,
