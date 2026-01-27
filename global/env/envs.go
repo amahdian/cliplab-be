@@ -47,6 +47,10 @@ type Envs struct {
 		Secret string `env:"RECAPTCHA_SECRET, required"`
 	}
 
+	Google struct {
+		ClientID string `env:"GOOGLE_CLIENT_ID"`
+	}
+
 	Redis struct {
 		Address  string `env:"REDIS_ADDRESS, default=localhost:6379"`
 		Password string `env:"REDIS_PASSWORD"`

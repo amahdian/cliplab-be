@@ -2,7 +2,10 @@ package svc
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/amahdian/cliplab-be/domain/contracts/req"
@@ -90,24 +93,20 @@ func (s *userSvc) Login(data *req.Login) (*resp.AuthResponse, error) {
 }
 
 func (s *userSvc) LoginOauth(data *req.OauthLogin) (*resp.AuthResponse, error) {
-	// This is a placeholder. In a real application, you would validate
-	// the token with the OAuth provider and get the user's info.
-	// For now, we'll just simulate it.
+	var email, providerID, name, picture string
 
-	// Example: In a real scenario you would call a function like:
-	// userInfo, err := oauth.VerifyToken(data.Provider, data.Token)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	//
-	// email := userInfo.Email
-	// providerID := userInfo.ID
-	// name := userInfo.Name
-
-	// Simulated user info for demonstration
-	email := "user@example.com"
-	providerID := "123456789"
-	name := "OAuth User"
+	if data.Provider == model.ProviderGoogle {
+		googleInfo, err := s.verifyGoogleToken(data.Token)
+		if err != nil {
+			return nil, err
+		}
+		email = googleInfo.Email
+		providerID = googleInfo.Sub
+		name = googleInfo.Name
+		picture = googleInfo.Picture
+	} else {
+		return nil, errors.New("provider not supported yet")
+	}
 
 	user, err := s.stg.User(s.ctx).FindByProvider(data.Provider, providerID)
 	if err != nil {
@@ -115,22 +114,93 @@ func (s *userSvc) LoginOauth(data *req.OauthLogin) (*resp.AuthResponse, error) {
 	}
 
 	if user == nil {
-		// User doesn't exist, create a new one
-		now := time.Now()
-		user = &model.User{
-			Email:      email,
-			Name:       &name,
-			Provider:   data.Provider,
-			ProviderID: &providerID,
-			VerifiedAt: &now, // OAuth users are considered verified
-		}
-		err = s.stg.User(s.ctx).CreateOne(user)
+		// Try to find by email if provider ID not found
+		user, err = s.stg.User(s.ctx).FindByEmail(email)
 		if err != nil {
 			return nil, err
+		}
+
+		if user != nil {
+			// Link provider to existing account
+			user.ProviderID = &providerID
+			user.Provider = data.Provider
+			if user.Name == nil {
+				user.Name = &name
+			}
+			if user.ProfileImage == nil && picture != "" {
+				user.ProfileImage = &picture
+			}
+			now := time.Now()
+			if user.VerifiedAt == nil {
+				user.VerifiedAt = &now
+			}
+			err = s.stg.User(s.ctx).UpdateOne(user, false)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			// Create new user
+			now := time.Now()
+			user = &model.User{
+				Email:        email,
+				Name:         &name,
+				Provider:     data.Provider,
+				ProviderID:   &providerID,
+				ProfileImage: &picture,
+				VerifiedAt:   &now,
+			}
+			err = s.stg.User(s.ctx).CreateOne(user)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
 	return s.generateAuthResponse(user)
+}
+
+type googleTokenInfo struct {
+	Email         string `json:"email"`
+	EmailVerified bool   `json:"email_verified"`
+	Name          string `json:"name"`
+	Picture       string `json:"picture"`
+	Sub           string `json:"sub"`
+	Aud           string `json:"aud"`
+	Error         string `json:"error"`
+}
+
+func (s *userSvc) verifyGoogleToken(token string) (*googleTokenInfo, error) {
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+	}
+
+	// We use the userinfo endpoint which accepts both access tokens (via header or query) and provides user details
+	req, err := http.NewRequest("GET", "https://www.googleapis.com/oauth2/v3/userinfo", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("google token verification failed with status: %d", resp.StatusCode)
+	}
+
+	var info googleTokenInfo
+	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
+		return nil, err
+	}
+
+	if info.Error != "" {
+		return nil, fmt.Errorf("google token verification failed: %s", info.Error)
+	}
+
+	return &info, nil
 }
 
 func (s *userSvc) Verify(email, otp string) (string, *model.User, error) {

@@ -29,8 +29,11 @@ func (r *Router) registerPublicRoutes() {
 
 func (r *Router) registerUserRoutes() {
 	config := newRouteConfig()
-	r.registerRoute(r.publicGroup, http.MethodPost, "/users/login", r.login, config)
-	r.registerRoute(r.publicGroup, http.MethodPost, "/users/register", r.register, config)
+	recaptchaMiddleware := middleware.VerifyRecaptcha(r.configs.Recaptcha.Secret)
+
+	r.registerRoute(r.publicGroup, http.MethodPost, "/users/login", r.login, config.withMiddlewares(recaptchaMiddleware))
+	r.registerRoute(r.publicGroup, http.MethodPost, "/users/login/oauth", r.loginOauth, config.withMiddlewares(recaptchaMiddleware))
+	r.registerRoute(r.publicGroup, http.MethodPost, "/users/register", r.register, config.withMiddlewares(recaptchaMiddleware))
 	r.registerRoute(r.publicGroup, http.MethodPost, "/users/verify", r.verify, config)
 	r.registerRoute(r.authGroup, http.MethodPut, "/users/update", r.updateUser, config)
 	r.registerRoute(r.authGroup, http.MethodGet, "/users/me", r.me, config)

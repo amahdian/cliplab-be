@@ -19,7 +19,7 @@ type OauthLogin struct {
 }
 
 type Verify struct {
-	Email string `json:"email" binding:"required,mobile"`
+	Email string `json:"email" binding:"required,email"`
 	Otp   string `json:"otp" binding:"required"`
 }
 
