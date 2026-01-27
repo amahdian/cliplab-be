@@ -15,7 +15,7 @@ type PostAnalysis struct {
 	WhyViral          string      `json:"whyViral"`
 	AudienceSentiment string      `json:"audienceSentiment"`
 	SentimentScore    int         `json:"sentimentScore"`
-	Verdict           PostVerdict `json:"verdict"`
+	Verdict           PostVerdict `json:"verdict" gorm:"serializer:json"`
 
 	Metrics    []PostAnalysisMetric `json:"metrics" gorm:"serializer:json"`
 	Strengths  []string             `json:"strengths" gorm:"serializer:json"`
