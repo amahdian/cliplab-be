@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS analyze_requests
     id           uuid PRIMARY KEY      DEFAULT uuid_generate_v4(),
     user_id      uuid         REFERENCES users (id) ON DELETE SET NULL,
     user_ip      INET,
-    post_id      VARCHAR(255) NOT NULL REFERENCES posts (id) ON DELETE SET NULL,
+    post_id      VARCHAR(255) REFERENCES posts (id) ON DELETE SET NULL,
     created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     updated_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     link         TEXT         NOT NULL,
