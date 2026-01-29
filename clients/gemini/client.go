@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -39,7 +40,7 @@ func NewClient(baseUrl, token string) Client {
 		Token:   token,
 		HTTPClient: &http.Client{
 			// Increased timeout for streaming
-			Timeout: 10 * time.Minute,
+			Timeout: 60 * time.Minute,
 		},
 	}
 }
@@ -354,6 +355,11 @@ FINAL INSTRUCTIONS
 	}
 	defer resp.Body.Close()
 
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return string(body), string(bodyBytes), nil, err
+	}
+
 	// 4. Parse the raw Google response
 	var googleResp struct {
 		Candidates []struct {
@@ -365,7 +371,7 @@ FINAL INSTRUCTIONS
 		} `json:"candidates"`
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&googleResp); err != nil {
+	if err := json.Unmarshal(bodyBytes, &googleResp); err != nil {
 		return string(body), "", nil, errors.Wrap(err, "failed to decode google response")
 	}
 
@@ -378,7 +384,7 @@ FINAL INSTRUCTIONS
 			} `json:"error"`
 		}
 
-		if err := json.NewDecoder(resp.Body).Decode(&apiErr); err == nil && apiErr.Error.Code != 0 {
+		if err := json.Unmarshal(bodyBytes, &apiErr); err == nil && apiErr.Error.Code != 0 {
 			e, _ := json.Marshal(apiErr)
 			return string(body), string(e), nil, errs.Newf(errs.Internal, err, apiErr.Error.Message)
 		}

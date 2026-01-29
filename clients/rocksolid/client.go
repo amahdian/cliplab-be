@@ -26,9 +26,15 @@ func NewClient(token string) Client {
 	return &client{
 		Token: token,
 		HTTPClient: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout: 60 * time.Second,
 		},
 	}
+}
+
+type GraphQLResponse struct {
+	Data struct {
+		ShortcodeMedia ReelData `json:"xdt_shortcode_media"`
+	} `json:"data"`
 }
 
 func (c *client) GetInstagramPost(shortcode string) (*ReelData, error) {
@@ -40,19 +46,35 @@ func (c *client) GetInstagramPost(shortcode string) (*ReelData, error) {
 	}
 	defer resp.Body.Close()
 
-	// 8. Handle non-successful status codes
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	bodyString := string(bodyBytes)
+
 	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("scrap request failed with status %d: %s", resp.StatusCode, string(bodyBytes))
+		return nil, fmt.Errorf(
+			"scrap request failed with status %d: %s",
+			resp.StatusCode,
+			bodyString,
+		)
 	}
 
-	// 9. Decode the JSON response
-	var scrapResp *ReelData
-	if err := json.NewDecoder(resp.Body).Decode(&scrapResp); err != nil {
-		return nil, errors.Wrap(err, "failed to decode transcription response")
+	var scrapResp ReelData
+	if err := json.Unmarshal(bodyBytes, &scrapResp); err != nil {
+		return nil, errors.Wrap(err, "failed to decode scrap response")
 	}
 
-	return scrapResp, nil
+	// Check if we got data - if empty, try wrapped format
+	if scrapResp.ID == "" {
+		var wrapped GraphQLResponse
+		if err := json.Unmarshal(bodyBytes, &wrapped); err != nil {
+			return nil, errors.Wrap(err, "failed to decode wrapped response")
+		}
+		return &wrapped.Data.ShortcodeMedia, nil
+	}
+
+	return &scrapResp, nil
 }
 
 func (c *client) GetInstagramPageReels(username string) (*Reels, error) {
