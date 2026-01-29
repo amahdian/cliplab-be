@@ -57,6 +57,7 @@ func (s *postQueueSvc) ProcessRequest(url string, requestId uuid.UUID, platform 
 		if err != nil {
 			return err
 		}
+		request.PostId = lo.ToPtr(post.ID)
 	} else {
 		shortcode := utils.GetInstagramShortcode(request.Link)
 		post = &model.Post{
@@ -305,7 +306,7 @@ func (s *postQueueSvc) renewInstagramScrap(post *model.Post) (*rocksolid.ReelDat
 
 	otherReelsDto, err := s.ScraperClient.GetInstagramPageReels(post.UserAnchor)
 	if err != nil {
-		return dto, nil, err
+		return nil, nil, err
 	}
 
 	// 1.5 Save channel history

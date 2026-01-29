@@ -156,7 +156,7 @@ func (s *analyzeSvc) AddRequestToAnalyzeQueue(url url.URL, user *auth.UserInfo, 
 	}
 
 	return &resp.PostQueueResponse{
-		RequestId:     post.ID,
+		RequestId:     analyzeRequest.ID.String(),
 		EstimatedTime: estimatedTime,
 	}, nil
 }
