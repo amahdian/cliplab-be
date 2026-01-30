@@ -40,7 +40,7 @@ func NewClient(baseUrl, token string) Client {
 		Token:   token,
 		HTTPClient: &http.Client{
 			// Increased timeout for streaming
-			Timeout: 60 * time.Minute,
+			Timeout: 120 * time.Minute,
 		},
 	}
 }
@@ -404,7 +404,7 @@ FINAL INSTRUCTIONS
 
 	if err := json.Unmarshal([]byte(actualJson), &finalResult); err != nil {
 		m := errors.Wrap(err, "failed to unmarshal analysis result")
-		return string(body), m.Error(), nil, m
+		return string(body), string(bodyBytes), nil, m
 	}
 
 	return string(body), actualJson, &finalResult, nil

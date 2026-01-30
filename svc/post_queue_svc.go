@@ -57,13 +57,21 @@ func (s *postQueueSvc) ProcessRequest(url string, requestId uuid.UUID, platform 
 		if err != nil {
 			return err
 		}
-		request.PostId = lo.ToPtr(post.ID)
 	} else {
 		shortcode := utils.GetInstagramShortcode(request.Link)
 		post = &model.Post{
-			ID:   shortcode,
-			Link: request.Link,
+			ID:         shortcode,
+			Link:       request.Link,
+			UserName:   "",
+			UserAnchor: "",
 		}
+
+		err = s.stg.Post(s.ctx).CreateOne(post)
+		if err != nil {
+			return err
+		}
+
+		request.PostId = lo.ToPtr(post.ID)
 	}
 
 	request.Status = model.RequestStatusProcessing
@@ -152,25 +160,33 @@ func (s *postQueueSvc) processInstagramScrap(request *model.AnalyzeRequest, reel
 
 	// A. Add Caption (from Instagram reelDto)
 	if len(reelDto.EdgeMediaToCaption.Edges) > 0 {
-		lang, _ := detector.DetectLanguageOf(reelDto.EdgeMediaToCaption.Edges[0].Node.Text)
+		lang, ok := detector.DetectLanguageOf(reelDto.EdgeMediaToCaption.Edges[0].Node.Text)
+		langStr := lang.IsoCode639_1().String()
+		if !ok {
+			langStr = ""
+		}
 		contents = append(contents, &model.PostContent{
 			PostID:   *request.PostId,
 			Type:     model.ContentCaption,
 			Text:     reelDto.EdgeMediaToCaption.Edges[0].Node.Text,
-			Language: lang.IsoCode639_1().String(),
+			Language: langStr,
 		})
 	}
 
 	// C. Add Transcript (from Gemini Segments)
 	if len(analysis.Content.Segments) > 0 {
 		for _, seg := range analysis.Content.Segments {
-			lang, _ := detector.DetectLanguageOf(seg.Content)
+			lang, ok := detector.DetectLanguageOf(seg.Content)
+			langStr := lang.IsoCode639_1().String()
+			if !ok {
+				langStr = ""
+			}
 
 			contents = append(contents, &model.PostContent{
 				PostID:   *request.PostId,
 				Type:     model.ContentTranscript,
 				Text:     seg.Content,
-				Language: lang.IsoCode639_1().String(),
+				Language: langStr,
 				Metadata: &model.SegmentPostContentMetadata{
 					Timestamp: seg.Timestamp,
 					Speaker:   seg.Speaker,
@@ -298,7 +314,7 @@ func (s *postQueueSvc) renewInstagramScrap(post *model.Post) (*rocksolid.ReelDat
 		post.ChannelId = &channel.ID
 	}
 
-	_ = s.stg.Post(s.ctx).UpdateOne(post, false)
+	_ = s.stg.Post(s.ctx).UpsertOne(post, false)
 
 	if dto.VideoURL == "" {
 		return dto, nil, nil
@@ -355,8 +371,10 @@ func (s *postQueueSvc) getInstagramVideoAnalysis(dto rocksolid.ReelData, otherRe
 	language := "US"
 	if len(dto.EdgeMediaToCaption.Edges) > 0 {
 		caption = dto.EdgeMediaToCaption.Edges[0].Node.Text
-		lang, _ := detector.DetectLanguageOf(dto.EdgeMediaToCaption.Edges[0].Node.Text)
-		language = lang.IsoCode639_1().String()
+		lang, ok := detector.DetectLanguageOf(dto.EdgeMediaToCaption.Edges[0].Node.Text)
+		if ok {
+			language = lang.IsoCode639_1().String()
+		}
 	}
 
 	coauthors := make([]string, len(dto.CoauthorProducers))

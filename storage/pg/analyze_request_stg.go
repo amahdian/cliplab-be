@@ -42,7 +42,7 @@ func (s *AnalyzeRequestStg) CountByIpAndDate(ip net.IP, date time.Time) (int64, 
 	end := start.Add(24 * time.Hour)
 
 	err := s.db.
-		Model(&model.Post{}).
+		Model(&model.AnalyzeRequest{}).
 		Where("user_ip = ? AND updated_at >= ? AND updated_at < ?", ip, start, end).
 		Count(&count).Error
 
