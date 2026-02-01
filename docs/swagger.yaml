@@ -180,7 +180,7 @@ paths:
       summary: getServerTime
       tags:
       - Public
-  /api/v1/user:
+  /v1/user:
     put:
       consumes:
       - application/json
@@ -222,7 +222,7 @@ paths:
       summary: Update user profile
       tags:
       - User
-  /api/v1/user/login:
+  /v1/user/login:
     post:
       consumes:
       - application/json
@@ -253,7 +253,7 @@ paths:
       summary: Login with phone number
       tags:
       - Authentication
-  /api/v1/user/me:
+  /v1/user/me:
     get:
       consumes:
       - application/json
@@ -282,7 +282,7 @@ paths:
       summary: Get current user profile
       tags:
       - User
-  /api/v1/user/verify:
+  /v1/user/verify:
     post:
       consumes:
       - application/json
@@ -317,7 +317,7 @@ paths:
       summary: Verify OTP and authenticate
       tags:
       - Authentication
-  /api/v1/ws:
+  /v1/ws:
     get:
       description: |-
         Upgrades the HTTP connection to a WebSocket connection for real-time, bidirectional communication.

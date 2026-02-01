@@ -20,7 +20,7 @@ import (
 //	@Success		101	"Switching Protocols"
 //	@Failure		401	"Unauthorized"
 //	@Failure		500	"Internal Server Error"
-//	@Router			/api/v1/ws [get]
+//	@Router			/v1/ws [get]
 func (r *Router) webSocketHandler(ctx *gin.Context) {
 	reqCtx := req.GetRequestContext(ctx)
 	user := reqCtx.UserInfo.User()

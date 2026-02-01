@@ -59,7 +59,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/user": {
+        "/v1/user": {
             "put": {
                 "security": [
                     {
@@ -122,7 +122,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/user/login": {
+        "/v1/user/login": {
             "post": {
                 "description": "Sends a one-time password (OTP) to the provided phone number to initiate the login process.",
                 "consumes": [
@@ -168,7 +168,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/user/me": {
+        "/v1/user/me": {
             "get": {
                 "security": [
                     {
@@ -214,7 +214,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/user/verify": {
+        "/v1/user/verify": {
             "post": {
                 "description": "Verifies the one-time password sent to the user's phone number. On successful verification, it returns an authentication token.",
                 "consumes": [
@@ -266,7 +266,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/ws": {
+        "/v1/ws": {
             "get": {
                 "security": [
                     {

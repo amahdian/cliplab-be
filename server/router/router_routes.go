@@ -8,9 +8,9 @@ import (
 )
 
 func (r *Router) setupRoutes() {
-	r.publicGroup = r.Group("/api/v1")
+	r.publicGroup = r.Group("/v1")
 	r.authGroup = r.Group(
-		"/api/v1",
+		"/v1",
 		middleware.VerifyAuth(r.authenticator),
 	)
 

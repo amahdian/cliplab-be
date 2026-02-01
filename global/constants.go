@@ -1,7 +1,7 @@
 package global
 
 const (
-	ApiPrefix     = "/api/v1"
+	ApiPrefix     = "/v1"
 	WebhookPrefix = "/webhook"
 
 	// DefaultDecimalPrecision is used in different reporting to the FE.
