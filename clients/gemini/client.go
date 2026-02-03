@@ -237,7 +237,7 @@ FINAL INSTRUCTIONS
 							"file_uri":  videoURL,
 							"mime_type": "video/mp4",
 						},
-						"video_metadata": map[string]interface{}{"fps": 0.5},
+						"video_metadata": map[string]interface{}{"fps": 2},
 					},
 					{"text": promptText},
 				},
