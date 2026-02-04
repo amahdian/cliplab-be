@@ -19,6 +19,8 @@ type Client interface {
 	GetTikTokVideo(videoURL string) (*TikTokAwemeDetail, error)
 	GetTikTokProfileVideos(username string) (*TikTokProfileVideosResponse, error)
 	GetYouTubeVideo(videoURL string) (*YouTubeVideoResponse, error)
+	GetTweet(tweetURL string) (*TwitterTweetResponse, error)
+	GetUserTweets(username string) (*TwitterUserTweetsResponse, error)
 }
 
 type client struct {
@@ -290,6 +292,92 @@ func (c *client) GetYouTubeVideo(videoURL string) (*YouTubeVideoResponse, error)
 
 	if !result.Success {
 		return nil, fmt.Errorf("scrapecreators youtube API returned success=false")
+	}
+
+	return &result, nil
+}
+
+func (c *client) GetTweet(tweetURL string) (*TwitterTweetResponse, error) {
+	endpoint := fmt.Sprintf("%s/v1/twitter/tweet", c.BaseURL)
+
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse endpoint")
+	}
+
+	q := u.Query()
+	q.Set("url", tweetURL)
+	u.RawQuery = q.Encode()
+
+	resp, err := c.doGet(u.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read response body")
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf(
+			"scrapecreators twitter request failed with status %d: %s",
+			resp.StatusCode,
+			string(bodyBytes),
+		)
+	}
+
+	var result TwitterTweetResponse
+	if err := json.Unmarshal(bodyBytes, &result); err != nil {
+		return nil, errors.Wrap(err, "failed to decode twitter response")
+	}
+
+	if !result.Success {
+		return nil, fmt.Errorf("scrapecreators twitter API returned success=false")
+	}
+
+	return &result, nil
+}
+
+func (c *client) GetUserTweets(username string) (*TwitterUserTweetsResponse, error) {
+	endpoint := fmt.Sprintf("%s/v1/twitter/user/tweets", c.BaseURL)
+
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse endpoint")
+	}
+
+	q := u.Query()
+	q.Set("handle", username)
+	u.RawQuery = q.Encode()
+
+	resp, err := c.doGet(u.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read response body")
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf(
+			"scrapecreators twitter user tweets request failed with status %d: %s",
+			resp.StatusCode,
+			string(bodyBytes),
+		)
+	}
+
+	var result TwitterUserTweetsResponse
+	if err := json.Unmarshal(bodyBytes, &result); err != nil {
+		return nil, errors.Wrap(err, "failed to decode twitter response")
+	}
+
+	if !result.Success {
+		return nil, fmt.Errorf("scrapecreators twitter API returned success=false")
 	}
 
 	return &result, nil

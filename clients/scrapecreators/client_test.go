@@ -111,3 +111,35 @@ func TestGetYoutubeVideo(t *testing.T) {
 	assert.Equal(t, "IB5cfAszMZY", res.ID)
 	assert.NotZero(t, res.ViewCountInt)
 }
+
+func TestGetTweet(t *testing.T) {
+	_ = godotenv.Load("../../.env.dev", "../../.env")
+
+	token := os.Getenv("SCRAPE_CREATORS_TOKEN")
+	if token == "" {
+		t.Skip("SCRAPE_CREATORS_TOKEN not set")
+	}
+
+	c := NewClient(token)
+	res, err := c.GetTweet("https://x.com/siyatweetstf/status/2018905766112207076")
+	assert.NoError(t, err)
+	assert.NotNil(t, res)
+	assert.True(t, res.Success)
+	assert.Equal(t, "2018905766112207076", res.RestID)
+}
+
+func TestGetUserTweets(t *testing.T) {
+	_ = godotenv.Load("../../.env.dev", "../../.env")
+
+	token := os.Getenv("SCRAPE_CREATORS_TOKEN")
+	if token == "" {
+		t.Skip("SCRAPE_CREATORS_TOKEN not set")
+	}
+
+	c := NewClient(token)
+	res, err := c.GetUserTweets("Mamoocham")
+	assert.NoError(t, err)
+	assert.NotNil(t, res)
+	assert.True(t, res.Success)
+	assert.NotEmpty(t, res.Tweets)
+}
