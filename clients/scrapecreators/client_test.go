@@ -94,3 +94,20 @@ func TestGetTikTokProfileVideos(t *testing.T) {
 	assert.True(t, res.Success)
 	assert.NotEmpty(t, res.AwemeList)
 }
+
+func TestGetYoutubeVideo(t *testing.T) {
+	_ = godotenv.Load("../../.env.dev", "../../.env")
+
+	token := os.Getenv("SCRAPE_CREATORS_TOKEN")
+	if token == "" {
+		t.Skip("SCRAPE_CREATORS_TOKEN not set")
+	}
+
+	c := NewClient(token)
+	res, err := c.GetYouTubeVideo("https://www.youtube.com/shorts/IB5cfAszMZY")
+	assert.NoError(t, err)
+	assert.NotNil(t, res)
+	assert.True(t, res.Success)
+	assert.Equal(t, "IB5cfAszMZY", res.ID)
+	assert.NotZero(t, res.ViewCountInt)
+}

@@ -18,6 +18,7 @@ type Client interface {
 	GetInstagramPagePosts(username string) (*PostsResponse, error)
 	GetTikTokVideo(videoURL string) (*TikTokAwemeDetail, error)
 	GetTikTokProfileVideos(username string) (*TikTokProfileVideosResponse, error)
+	GetYouTubeVideo(videoURL string) (*YouTubeVideoResponse, error)
 }
 
 type client struct {
@@ -246,6 +247,49 @@ func (c *client) GetTikTokProfileVideos(username string) (*TikTokProfileVideosRe
 
 	if !result.Success {
 		return nil, fmt.Errorf("scrapecreators tiktok profile videos API returned success=false")
+	}
+
+	return &result, nil
+}
+
+func (c *client) GetYouTubeVideo(videoURL string) (*YouTubeVideoResponse, error) {
+	endpoint := fmt.Sprintf("%s/v1/youtube/video", c.BaseURL)
+
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse endpoint")
+	}
+
+	q := u.Query()
+	q.Set("url", videoURL)
+	u.RawQuery = q.Encode()
+
+	resp, err := c.doGet(u.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read response body")
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf(
+			"scrapecreators youtube request failed with status %d: %s",
+			resp.StatusCode,
+			string(bodyBytes),
+		)
+	}
+
+	var result YouTubeVideoResponse
+	if err := json.Unmarshal(bodyBytes, &result); err != nil {
+		return nil, errors.Wrap(err, "failed to decode youtube response")
+	}
+
+	if !result.Success {
+		return nil, fmt.Errorf("scrapecreators youtube API returned success=false")
 	}
 
 	return &result, nil
