@@ -14,7 +14,7 @@ func TestGetInstagramPost(t *testing.T) {
 
 	token := os.Getenv("SCRAPE_CREATORS_TOKEN")
 	if token == "" {
-		t.Skip("SCRAPE_CREATORS_TOKEN or SCRAP_CREATORS_TOKEN not set")
+		t.Skip("SCRAPE_CREATORS_TOKEN not set")
 	}
 
 	c := NewClient(token)
@@ -32,11 +32,7 @@ func TestGetInstagramPageReels(t *testing.T) {
 
 	token := os.Getenv("SCRAPE_CREATORS_TOKEN")
 	if token == "" {
-		token = os.Getenv("SCRAP_CREATORS_TOKEN")
-	}
-
-	if token == "" {
-		t.Skip("SCRAPE_CREATORS_TOKEN or SCRAP_CREATORS_TOKEN not set")
+		t.Skip("SCRAPE_CREATORS_TOKEN not set")
 	}
 
 	c := NewClient(token)
@@ -56,7 +52,7 @@ func TestGetInstagramPagePosts(t *testing.T) {
 	}
 
 	if token == "" {
-		t.Skip("SCRAPE_CREATORS_TOKEN or SCRAP_CREATORS_TOKEN not set")
+		t.Skip("SCRAPE_CREATORS_TOKEN not set")
 	}
 
 	c := NewClient(token)
@@ -65,4 +61,36 @@ func TestGetInstagramPagePosts(t *testing.T) {
 	assert.NotNil(t, res)
 	assert.True(t, res.Success)
 	assert.NotEmpty(t, res.Items)
+}
+
+func TestGetTikTokVideo(t *testing.T) {
+	_ = godotenv.Load("../../.env.dev", "../../.env")
+
+	token := os.Getenv("SCRAPE_CREATORS_TOKEN")
+	if token == "" {
+		t.Skip("SCRAPE_CREATORS_TOKEN not set")
+	}
+
+	c := NewClient(token)
+	res, err := c.GetTikTokVideo("https://www.tiktok.com/@evanjrocha/video/7581126950450744598")
+	assert.NoError(t, err)
+	assert.NotNil(t, res)
+	assert.Equal(t, "7581126950450744598", res.AwemeID)
+	assert.NotZero(t, res.Statistics.PlayCount)
+}
+
+func TestGetTikTokProfileVideos(t *testing.T) {
+	_ = godotenv.Load("../../.env.dev", "../../.env")
+
+	token := os.Getenv("SCRAPE_CREATORS_TOKEN")
+	if token == "" {
+		t.Skip("SCRAPE_CREATORS_TOKEN not set")
+	}
+
+	c := NewClient(token)
+	res, err := c.GetTikTokProfileVideos("evanjrocha")
+	assert.NoError(t, err)
+	assert.NotNil(t, res)
+	assert.True(t, res.Success)
+	assert.NotEmpty(t, res.AwemeList)
 }

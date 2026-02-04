@@ -16,6 +16,8 @@ type Client interface {
 	GetInstagramPost(postURL string) (*ReelData, error)
 	GetInstagramPageReels(username string) (*ReelsResponse, error)
 	GetInstagramPagePosts(username string) (*PostsResponse, error)
+	GetTikTokVideo(videoURL string) (*TikTokAwemeDetail, error)
+	GetTikTokProfileVideos(username string) (*TikTokProfileVideosResponse, error)
 }
 
 type client struct {
@@ -158,6 +160,92 @@ func (c *client) GetInstagramPagePosts(username string) (*PostsResponse, error) 
 
 	if !result.Success {
 		return nil, fmt.Errorf("scrapecreators posts API returned success=false")
+	}
+
+	return &result, nil
+}
+
+func (c *client) GetTikTokVideo(videoURL string) (*TikTokAwemeDetail, error) {
+	endpoint := fmt.Sprintf("%s/v2/tiktok/video", c.BaseURL)
+
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse endpoint")
+	}
+
+	q := u.Query()
+	q.Set("url", videoURL)
+	u.RawQuery = q.Encode()
+
+	resp, err := c.doGet(u.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read response body")
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf(
+			"scrapecreators tiktok request failed with status %d: %s",
+			resp.StatusCode,
+			string(bodyBytes),
+		)
+	}
+
+	var result TikTokVideoResponse
+	if err := json.Unmarshal(bodyBytes, &result); err != nil {
+		return nil, errors.Wrap(err, "failed to decode tiktok response")
+	}
+
+	if !result.Success {
+		return nil, fmt.Errorf("scrapecreators tiktok API returned success=false")
+	}
+
+	return &result.AwemeDetail, nil
+}
+
+func (c *client) GetTikTokProfileVideos(username string) (*TikTokProfileVideosResponse, error) {
+	endpoint := fmt.Sprintf("%s/v2/tiktok/user/videos", c.BaseURL)
+
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse endpoint")
+	}
+
+	q := u.Query()
+	q.Set("handle", username)
+	u.RawQuery = q.Encode()
+
+	resp, err := c.doGet(u.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read response body")
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf(
+			"scrapecreators tiktok profile videos request failed with status %d: %s",
+			resp.StatusCode,
+			string(bodyBytes),
+		)
+	}
+
+	var result TikTokProfileVideosResponse
+	if err := json.Unmarshal(bodyBytes, &result); err != nil {
+		return nil, errors.Wrap(err, "failed to decode tiktok profile videos response")
+	}
+
+	if !result.Success {
+		return nil, fmt.Errorf("scrapecreators tiktok profile videos API returned success=false")
 	}
 
 	return &result, nil
