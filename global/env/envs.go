@@ -43,6 +43,10 @@ type Envs struct {
 		Token string `env:"RAPIDAPI_TOKEN, required"`
 	}
 
+	ScrapeCreators struct {
+		Token string `env:"SCRAPE_CREATORS_TOKEN"`
+	}
+
 	Recaptcha struct {
 		Secret string `env:"RECAPTCHA_SECRET, required"`
 	}

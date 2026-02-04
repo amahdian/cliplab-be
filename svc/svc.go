@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/amahdian/cliplab-be/clients/gemini"
-	"github.com/amahdian/cliplab-be/clients/rocksolid"
+	"github.com/amahdian/cliplab-be/clients/scrapecreators"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/amahdian/cliplab-be/global/env"
@@ -29,7 +29,7 @@ type svcImpl struct {
 	pgStg         storage.PgStorage
 	Envs          *env.Envs
 	geminiClient  gemini.Client
-	scraperClient rocksolid.Client
+	scraperClient scrapecreators.Client
 	redisClient   *redis.Client
 	storageConfig StorageConfig
 }
@@ -38,7 +38,7 @@ func NewSvc(
 	pgStg storage.PgStorage,
 	envs *env.Envs,
 	geminiClient gemini.Client,
-	scraperClient rocksolid.Client,
+	scraperClient scrapecreators.Client,
 	redisClient *redis.Client,
 	storageConfig StorageConfig) Svc {
 

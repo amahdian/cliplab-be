@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/amahdian/cliplab-be/clients/gemini"
-	"github.com/amahdian/cliplab-be/clients/rocksolid"
+	"github.com/amahdian/cliplab-be/clients/scrapecreators"
 	"github.com/amahdian/cliplab-be/domain/model"
 	"github.com/amahdian/cliplab-be/global/env"
 	"github.com/amahdian/cliplab-be/global/errs"
@@ -30,10 +30,10 @@ type postQueueSvc struct {
 	envs *env.Envs
 
 	GeminiClient  gemini.Client
-	ScraperClient rocksolid.Client
+	ScraperClient scrapecreators.Client
 }
 
-func newPostQueueSvc(ctx context.Context, stg storage.PgStorage, envs *env.Envs, geminiClient gemini.Client, scraperClient rocksolid.Client) QueueSvc {
+func newPostQueueSvc(ctx context.Context, stg storage.PgStorage, envs *env.Envs, geminiClient gemini.Client, scraperClient scrapecreators.Client) QueueSvc {
 	return &postQueueSvc{
 		ctx:           ctx,
 		stg:           stg,
@@ -138,7 +138,7 @@ func (s *postQueueSvc) RenewPost(url string, requestId uuid.UUID, platform model
 	return err
 }
 
-func (s *postQueueSvc) processInstagramScrap(request *model.AnalyzeRequest, reelDto *rocksolid.ReelData, otherReelsDto *rocksolid.Reels) error {
+func (s *postQueueSvc) processInstagramScrap(request *model.AnalyzeRequest, reelDto *scrapecreators.ReelData, otherReelsDto *scrapecreators.ReelsResponse) error {
 	detector := lingua.NewLanguageDetectorBuilder().FromAllSpokenLanguages().Build()
 
 	// 2. Get Advanced Video Analysis from Gemini
@@ -281,7 +281,7 @@ func (s *postQueueSvc) processInstagramScrap(request *model.AnalyzeRequest, reel
 	return nil
 }
 
-func (s *postQueueSvc) renewInstagramScrap(post *model.Post) (*rocksolid.ReelData, *rocksolid.Reels, error) {
+func (s *postQueueSvc) renewInstagramScrap(post *model.Post) (*scrapecreators.ReelData, *scrapecreators.ReelsResponse, error) {
 	dto, err := s.ScraperClient.GetInstagramPost(post.ID)
 	if err != nil {
 		return nil, nil, err
@@ -330,21 +330,21 @@ func (s *postQueueSvc) renewInstagramScrap(post *model.Post) (*rocksolid.ReelDat
 	totalComment := int64(0)
 	totalViewCount := int64(0)
 	totalPlayCount := int64(0)
-	for _, reel := range otherReelsDto.Reels {
-		totalLike += reel.Node.Media.LikeCount
-		totalComment += reel.Node.Media.CommentCount
-		totalPlayCount += reel.Node.Media.PlayCount
+	for _, reel := range otherReelsDto.Items {
+		totalLike += reel.Media.LikeCount
+		totalComment += reel.Media.CommentCount
+		totalPlayCount += reel.Media.PlayCount
 	}
 
 	avgLikes := int64(0)
 	avgComments := int64(0)
 	avgViews := int64(0)
 	avgPlays := int64(0)
-	if len(otherReelsDto.Reels) > 0 {
-		avgLikes = totalLike / int64(len(otherReelsDto.Reels))
-		avgComments = totalComment / int64(len(otherReelsDto.Reels))
-		avgViews = totalViewCount / int64(len(otherReelsDto.Reels))
-		avgPlays = totalPlayCount / int64(len(otherReelsDto.Reels))
+	if len(otherReelsDto.Items) > 0 {
+		avgLikes = totalLike / int64(len(otherReelsDto.Items))
+		avgComments = totalComment / int64(len(otherReelsDto.Items))
+		avgViews = totalViewCount / int64(len(otherReelsDto.Items))
+		avgPlays = totalPlayCount / int64(len(otherReelsDto.Items))
 	}
 
 	_ = s.stg.ChannelHistory(s.ctx).CreateOne(&model.ChannelHistory{
@@ -362,7 +362,7 @@ func (s *postQueueSvc) renewInstagramScrap(post *model.Post) (*rocksolid.ReelDat
 	return dto, otherReelsDto, nil
 }
 
-func (s *postQueueSvc) getInstagramVideoAnalysis(dto rocksolid.ReelData, otherReelsDto rocksolid.Reels, detector lingua.LanguageDetector) (string, string, *gemini.AnalysisResponse, error) {
+func (s *postQueueSvc) getInstagramVideoAnalysis(dto scrapecreators.ReelData, otherReelsDto scrapecreators.ReelsResponse, detector lingua.LanguageDetector) (string, string, *gemini.AnalysisResponse, error) {
 
 	// 2. We usually analyze the main video (first one) or the longest one.
 	// Instagram carousels might have multiple videos, but for MVP we process the primary one.
@@ -398,23 +398,21 @@ func (s *postQueueSvc) getInstagramVideoAnalysis(dto rocksolid.ReelData, otherRe
 
 	totalLike := int64(0)
 	totalComment := int64(0)
-	totalViewCount := int64(0)
 	totalPlayCount := int64(0)
-	for _, reel := range otherReelsDto.Reels {
-		totalLike += reel.Node.Media.LikeCount
-		totalComment += reel.Node.Media.CommentCount
-		totalViewCount += reel.Node.Media.ViewCount
-		totalPlayCount += reel.Node.Media.PlayCount
+	for _, reel := range otherReelsDto.Items {
+		totalLike += reel.Media.LikeCount
+		totalComment += reel.Media.CommentCount
+		totalPlayCount += reel.Media.PlayCount
 	}
 
 	averageStats := map[string]float64{}
-	if len(otherReelsDto.Reels) > 0 && totalLike > 0 {
+	if len(otherReelsDto.Items) > 0 && totalLike > 0 {
 		averageStats = map[string]float64{
 			"follower_count":          float64(dto.Owner.EdgeFollowedBy.Count),
-			"average_like_count":      float64(totalLike) / float64(len(otherReelsDto.Reels)),
-			"average_comment_count":   float64(totalComment) / float64(len(otherReelsDto.Reels)),
-			"average_play_count":      float64(totalPlayCount) / float64(len(otherReelsDto.Reels)),
-			"average_engagement_rate": (float64(totalLike+totalComment) / float64(int64(len(otherReelsDto.Reels))*dto.Owner.EdgeFollowedBy.Count)) * 100,
+			"average_like_count":      float64(totalLike) / float64(len(otherReelsDto.Items)),
+			"average_comment_count":   float64(totalComment) / float64(len(otherReelsDto.Items)),
+			"average_play_count":      float64(totalPlayCount) / float64(len(otherReelsDto.Items)),
+			"average_engagement_rate": (float64(totalLike+totalComment) / float64(int64(len(otherReelsDto.Items))*dto.Owner.EdgeFollowedBy.Count)) * 100,
 		}
 	}
 

@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/amahdian/cliplab-be/clients/gemini"
-	"github.com/amahdian/cliplab-be/clients/rocksolid"
+	"github.com/amahdian/cliplab-be/clients/scrapecreators"
 	"github.com/amahdian/cliplab-be/global/env"
 	"github.com/amahdian/cliplab-be/pkg/db"
 	"github.com/amahdian/cliplab-be/pkg/logger"
@@ -30,7 +30,7 @@ type Server struct {
 	Envs *env.Envs
 
 	GeminiClient  gemini.Client
-	ScraperClient rocksolid.Client
+	ScraperClient scrapecreators.Client
 	RedisClient   *redis.Client
 
 	Authenticator auth.Authenticator
@@ -178,8 +178,11 @@ func (s *Server) setupGPTClient() error {
 }
 
 func (s *Server) setupScaperClient() error {
-	client := rocksolid.NewClient(s.Envs.RapidApi.Token)
+	client := scrapecreators.NewClient(s.Envs.RapidApi.Token)
 	s.ScraperClient = client
+
+	scrapecreatorsClient := scrapecreators.NewClient(s.Envs.ScrapeCreators.Token)
+	s.ScraperClient = scrapecreatorsClient
 	return nil
 }
 
