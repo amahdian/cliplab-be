@@ -63,6 +63,26 @@ func TestGetInstagramPagePosts(t *testing.T) {
 	assert.NotEmpty(t, res.Items)
 }
 
+func TestGetInstagramProfile(t *testing.T) {
+	_ = godotenv.Load("../../.env.dev", "../../.env")
+
+	token := os.Getenv("SCRAPE_CREATORS_TOKEN")
+	if token == "" {
+		token = os.Getenv("SCRAP_CREATORS_TOKEN")
+	}
+
+	if token == "" {
+		t.Skip("SCRAPE_CREATORS_TOKEN not set")
+	}
+
+	c := NewClient(token)
+	res, err := c.GetInstagramProfile("instagram")
+	assert.NoError(t, err)
+	assert.NotNil(t, res)
+	assert.True(t, res.Success)
+	assert.Equal(t, "instagram", res.Data.User.Username)
+}
+
 func TestGetTikTokVideo(t *testing.T) {
 	_ = godotenv.Load("../../.env.dev", "../../.env")
 
