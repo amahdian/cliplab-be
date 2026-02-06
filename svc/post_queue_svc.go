@@ -282,7 +282,7 @@ func (s *postQueueSvc) processInstagramScrap(request *model.AnalyzeRequest, reel
 }
 
 func (s *postQueueSvc) renewInstagramScrap(post *model.Post) (*scrapecreators.ReelData, *scrapecreators.ReelsResponse, error) {
-	dto, err := s.ScraperClient.GetInstagramPost(post.ID)
+	dto, err := s.ScraperClient.GetInstagramPost(post.Link)
 	if err != nil {
 		return nil, nil, err
 	}

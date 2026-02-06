@@ -289,7 +289,7 @@ type ReelMedia struct {
 	IsOpenToPublicSubmission                             bool                     `json:"is_open_to_public_submission"`
 	IsSocialUfiDisabled                                  bool                     `json:"is_social_ufi_disabled"`
 	OpenCarouselShowFollowButton                         bool                     `json:"open_carousel_show_follow_button"`
-	TimelinePinnedUserIds                                []string                 `json:"timeline_pinned_user_ids"`
+	TimelinePinnedUserIds                                interface{}              `json:"timeline_pinned_user_ids"`
 	FbUserTags                                           interface{}              `json:"fb_user_tags"`
 	CoauthorProducerCanSeeOrganicInsights                bool                     `json:"coauthor_producer_can_see_organic_insights"`
 	InvitedCoauthorProducers                             []interface{}            `json:"invited_coauthor_producers"`

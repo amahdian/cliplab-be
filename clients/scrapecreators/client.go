@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -41,6 +42,7 @@ func NewClient(token string) Client {
 }
 
 func (c *client) GetInstagramPost(postURL string) (*ReelData, error) {
+	postURL = strings.Replace(postURL, "/reels/", "/reel/", -1)
 	endpoint := fmt.Sprintf("%s/v1/instagram/post", c.BaseURL)
 
 	u, err := url.Parse(endpoint)
