@@ -35,7 +35,7 @@ func NewClient(token string) Client {
 		Token:   token,
 		BaseURL: "https://api.scrapecreators.com",
 		HTTPClient: &http.Client{
-			Timeout: 10 * time.Second,
+			Timeout: 30 * time.Second,
 		},
 	}
 }
@@ -127,7 +127,7 @@ func (c *client) GetInstagramPageReels(username string) (*ReelsResponse, error) 
 }
 
 func (c *client) GetInstagramPagePosts(username string) (*PostsResponse, error) {
-	endpoint := fmt.Sprintf("%s/v1/instagram/user/posts", c.BaseURL)
+	endpoint := fmt.Sprintf("%s/v2/instagram/user/posts", c.BaseURL)
 
 	u, err := url.Parse(endpoint)
 	if err != nil {
@@ -385,7 +385,7 @@ func (c *client) GetUserTweets(username string) (*TwitterUserTweetsResponse, err
 }
 
 func (c *client) GetInstagramProfile(username string) (*InstagramProfileResponse, error) {
-	endpoint := fmt.Sprintf("%s/v1/instagram/user/info", c.BaseURL)
+	endpoint := fmt.Sprintf("%s/v1/instagram/profile", c.BaseURL)
 
 	u, err := url.Parse(endpoint)
 	if err != nil {

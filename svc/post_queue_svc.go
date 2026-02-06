@@ -351,10 +351,10 @@ func (s *postQueueSvc) renewInstagramScrap(post *model.Post) (*scrapecreators.Re
 		ChannelID:         *post.ChannelId,
 		FollowersCount:    dto.Owner.EdgeFollowedBy.Count,
 		MediaCount:        dto.Owner.EdgeOwnerToTimelineMedia.Count,
-		AverageLikes:      avgLikes,
-		AverageComments:   avgComments,
-		AverageVideoViews: avgViews,
-		AverageVideoPlays: avgPlays,
+		AverageLikes:      float64(avgLikes),
+		AverageComments:   float64(avgComments),
+		AverageVideoViews: float64(avgViews),
+		AverageVideoPlays: float64(avgPlays),
 	})
 
 	_ = s.stg.Post(s.ctx).UpdateOne(post, false)

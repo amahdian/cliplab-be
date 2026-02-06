@@ -16,6 +16,7 @@ type PgCrudStorage[M schema.Tabler] interface {
 	FindById(id uuid.UUID) (model M, err error)
 	FindByHashId(id string) (model M, err error)
 	ListByIds(ids []uuid.UUID) (models []M, err error)
+	ListBy(query interface{}, args ...interface{}) (models []M, err error)
 
 	UpdateOne(model M, updateZeroValues bool) error
 	UpdateMany(models []M) error

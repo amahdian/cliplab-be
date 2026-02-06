@@ -41,9 +41,9 @@ type AnalyzeResult struct {
 	EngagementRate float64   `json:"engagementRate,omitempty"`
 	PostDate       time.Time `json:"postDate,omitempty"`
 
-	AverageLikeCount      int64   `json:"averageLikeCount,omitempty"`
-	AverageCommentCount   int64   `json:"averageCommentCount,omitempty"`
-	AverageViewCount      int64   `json:"averageViewCount,omitempty"`
+	AverageLikeCount      float64 `json:"averageLikeCount,omitempty"`
+	AverageCommentCount   float64 `json:"averageCommentCount,omitempty"`
+	AverageViewCount      float64 `json:"averageViewCount,omitempty"`
 	AverageEngagementRate float64 `json:"averageEngagementRate,omitempty"`
 
 	Analysis *model.PostAnalysis `json:"analysis,omitempty"`

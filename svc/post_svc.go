@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"net"
 	"net/url"
-	"regexp"
-	"strings"
 	"time"
 
 	"github.com/amahdian/cliplab-be/domain/contracts/resp"
@@ -54,7 +52,7 @@ func newAnalyzeSvc(
 }
 
 func (s *analyzeSvc) AddRequestToAnalyzeQueue(url url.URL, user *auth.UserInfo, ip net.IP) (*resp.PostQueueResponse, error) {
-	platform := detectSocialMediaID(url)
+	platform := utils.DetectSocialMediaID(url)
 	if platform != model.PlatformInstagram {
 		return nil, errs.Newf(errs.InvalidArgument, nil, "unsupported platform, we only support Instagram reels for now")
 	}
@@ -244,34 +242,6 @@ func (s *analyzeSvc) GetAnalyzeResult(id uuid.UUID) (*resp.AnalyzeResult, error)
 	}
 
 	return res, nil
-}
-
-func detectSocialMediaID(url url.URL) model.SocialPlatform {
-	text := strings.TrimSpace(url.String())
-	text = strings.Split(text, "?")[0]
-	text = strings.TrimSuffix(text, "/")
-
-	// Patterns capture the ID as the first group
-	youtubeRegex := regexp.MustCompile(`(?:https?://)?(?:www\.)?(?:youtube\.com/watch\?v=|youtu\.be/)([\w-]+)`)
-	//instagramRegex := regexp.MustCompile(`(?:https?://)?(?:www\.)?instagram\.com/(?:[^/]+/)?(?:p|reels?|tv)/([A-Za-z0-9_-]+)`)
-	instagramRegex := regexp.MustCompile(`(?:https?://)?(?:www\.)?instagram\.com/(?:reels?|reel)/([A-Za-z0-9_-]+)`)
-	tiktokRegex := regexp.MustCompile(`(?:https?://)?(?:www\.)?tiktok\.com/@[\w.-]+/video/(\d+)`)
-	twitterRegex := regexp.MustCompile(`(?:https?://)?(?:www\.)?(?:twitter\.com|x\.com)/\w+/status/(\d+)`)
-
-	if match := youtubeRegex.FindStringSubmatch(text); len(match) > 1 {
-		return model.PlatformYouTube
-	}
-	if match := instagramRegex.FindStringSubmatch(text); len(match) > 1 {
-		return model.PlatformInstagram
-	}
-	if match := tiktokRegex.FindStringSubmatch(text); len(match) > 1 {
-		return model.PlatformTikTok
-	}
-	if match := twitterRegex.FindStringSubmatch(text); len(match) > 1 {
-		return model.PlatformTwitter
-	}
-
-	return model.PlatformUnknown
 }
 
 func getEstimatedTimeByPlatform(platform model.SocialPlatform) int {

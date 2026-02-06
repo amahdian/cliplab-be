@@ -2,6 +2,7 @@ package pg
 
 import (
 	"github.com/amahdian/cliplab-be/domain/model"
+	"github.com/pkg/errors"
 	"gorm.io/gorm"
 )
 
@@ -23,6 +24,9 @@ func (s *ChannelStg) FindByHandler(handler string) (*model.Channel, error) {
 		}).
 		First(res, "handler = ?", handler).Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
 		return nil, err
 	}
 

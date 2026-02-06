@@ -18,6 +18,7 @@ type Svc interface {
 	NewFileSvc(ctx context.Context) FileSvc
 	NewQueueSvc(ctx context.Context) QueueSvc
 	NewWebSocketSvc(ctx context.Context) WebSocketSvc
+	NewChannelSvc(ctx context.Context) ChannelSvc
 }
 
 type StorageConfig struct {
@@ -70,4 +71,8 @@ func (s *svcImpl) NewQueueSvc(ctx context.Context) QueueSvc {
 
 func (s *svcImpl) NewWebSocketSvc(ctx context.Context) WebSocketSvc {
 	return NewWebSocketSvc()
+}
+
+func (s *svcImpl) NewChannelSvc(ctx context.Context) ChannelSvc {
+	return newChannelSvc(ctx, s.pgStg, s.scraperClient)
 }

@@ -17,6 +17,7 @@ func (r *Router) setupRoutes() {
 	r.registerPublicRoutes()
 	r.registerUserRoutes()
 	r.registerAnalyzeRoutes()
+	r.registerChannelRoutes()
 	r.registerWebSocketRoutes()
 }
 
@@ -44,6 +45,13 @@ func (r *Router) registerAnalyzeRoutes() {
 	//r.registerRoute(r.publicGroup, http.MethodPost, "/analyze", r.addRequestToAnalyzeQueue, config)
 	r.registerRoute(r.publicGroup, http.MethodPost, "/analyze", r.addRequestToAnalyzeQueue, config.withMiddlewares(middleware.VerifyRecaptcha(r.configs.Recaptcha.Secret)))
 	r.registerRoute(r.publicGroup, http.MethodGet, "/analyze/:id", r.getAnalyzeResult, config)
+}
+
+func (r *Router) registerChannelRoutes() {
+	config := newRouteConfig()
+	recaptchaMiddleware := middleware.VerifyRecaptcha(r.configs.Recaptcha.Secret)
+
+	r.registerRoute(r.publicGroup, http.MethodGet, "/channels/engagement-rate", r.getChannelEngagementRate, config.withMiddlewares(recaptchaMiddleware))
 }
 
 func (r *Router) registerWebSocketRoutes() {

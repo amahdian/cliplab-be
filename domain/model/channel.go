@@ -17,12 +17,14 @@ const (
 )
 
 type Channel struct {
-	ID        uuid.UUID      `json:"id" gorm:"type:uuid;default:uuid_generate_v4()"`
-	FullName  string         `json:"fullName"`
-	Handler   string         `json:"handler"`
-	CreatedAt time.Time      `json:"createdAt"`
-	UpdatedAt time.Time      `json:"updatedAt"`
-	Platform  SocialPlatform `json:"platform"`
+	ID                uuid.UUID      `json:"id" gorm:"type:uuid;default:uuid_generate_v4()"`
+	FullName          string         `json:"fullName"`
+	Handler           string         `json:"handler"`
+	CreatedAt         time.Time      `json:"createdAt"`
+	UpdatedAt         time.Time      `json:"updatedAt"`
+	Platform          SocialPlatform `json:"platform"`
+	ProfileImage      string         `json:"profileImage"`
+	ProfileDescriptor string         `json:"profileDescriptor"`
 
 	Histories   []*ChannelHistory `json:"history"`
 	LastHistory *ChannelHistory   `json:"lastHistory" gorm:"-"`
