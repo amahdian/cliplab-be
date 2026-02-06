@@ -1,5 +1,7 @@
 package model
 
+const FreeCreditAmount = 200
+
 type CreditRule struct {
 	Name     string `json:"name"`
 	Category string `json:"category"`
@@ -10,6 +12,7 @@ type CreditRule struct {
 const (
 	CreditKeyEngagementRate      = "engagement_rate"
 	CreditKeyEngagementBreakdown = "engagement_breakdown"
+	CreditKeyReelAnalyze         = "reel_analyze"
 )
 
 var CreditRules = []CreditRule{
@@ -24,6 +27,12 @@ var CreditRules = []CreditRule{
 		Category: "Engagement Rate",
 		Amount:   1,
 		Key:      CreditKeyEngagementBreakdown,
+	},
+	{
+		Name:     "Reel Analyze",
+		Category: "Reel Analyze",
+		Amount:   10,
+		Key:      CreditKeyReelAnalyze,
 	},
 }
 

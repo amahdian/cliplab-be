@@ -63,7 +63,7 @@ func (s *svcImpl) NewFileSvc(ctx context.Context) FileSvc {
 }
 
 func (s *svcImpl) NewPostSvc(ctx context.Context) AnalyzeSvc {
-	return newAnalyzeSvc(ctx, s.pgStg, s.Envs, s.redisClient, s.NewFileSvc(ctx))
+	return newAnalyzeSvc(ctx, s.pgStg, s.Envs, s.redisClient, s.NewFileSvc(ctx), s.NewCreditSvc(ctx))
 }
 
 func (s *svcImpl) NewQueueSvc(ctx context.Context) QueueSvc {

@@ -38,6 +38,7 @@ type analyzeSvc struct {
 
 	fileSvc     FileSvc
 	RedisClient *redis.Client
+	creditSvc   CreditSvc
 }
 
 func newAnalyzeSvc(
@@ -45,13 +46,15 @@ func newAnalyzeSvc(
 	stg storage.PgStorage,
 	envs *env.Envs,
 	redisClient *redis.Client,
-	fileSvc FileSvc) AnalyzeSvc {
+	fileSvc FileSvc,
+	creditSvc CreditSvc) AnalyzeSvc {
 	return &analyzeSvc{
 		ctx:         ctx,
 		stg:         stg,
 		envs:        envs,
 		RedisClient: redisClient,
 		fileSvc:     fileSvc,
+		creditSvc:   creditSvc,
 	}
 }
 
@@ -71,12 +74,13 @@ func (s *analyzeSvc) AddRequestToAnalyzeQueue(url url.URL, user *auth.UserInfo, 
 
 	now := time.Now()
 
-	if post.ID == "" && user.Id == uuid.Nil {
-		// check the rate limit
-		requestCount, err := s.stg.AnalyzeRequest(s.ctx).CountByIpAndDate(ip, now)
-		if err == nil && requestCount >= 2 {
-			return nil, errs.Newf(errs.PermissionDenied, nil, "payment required")
-		}
+	if user == nil || user.Id == uuid.Nil {
+		return nil, errs.Newf(errs.PermissionDenied, nil, "payment required")
+	}
+
+	// Dedut credits for registered users
+	if _, err := s.creditSvc.CheckAndDeduct(user.Id, model.CreditKeyReelAnalyze); err != nil {
+		return nil, err
 	}
 
 	var analyzeRequest *model.AnalyzeRequest

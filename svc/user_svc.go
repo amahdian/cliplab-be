@@ -148,6 +148,7 @@ func (s *userSvc) LoginOauth(data *req.OauthLogin) (*resp.AuthResponse, error) {
 				ProviderID:   &providerID,
 				ProfileImage: &picture,
 				VerifiedAt:   &now,
+				Credits:      model.FreeCreditAmount,
 			}
 			err = s.stg.User(s.ctx).CreateOne(user)
 			if err != nil {
