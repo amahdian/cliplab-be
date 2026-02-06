@@ -45,6 +45,7 @@ func (r *Router) registerAnalyzeRoutes() {
 	//r.registerRoute(r.publicGroup, http.MethodPost, "/analyze", r.addRequestToAnalyzeQueue, config)
 	r.registerRoute(r.publicGroup, http.MethodPost, "/analyze", r.addRequestToAnalyzeQueue, config.withMiddlewares(middleware.VerifyRecaptcha(r.configs.Recaptcha.Secret)))
 	r.registerRoute(r.publicGroup, http.MethodGet, "/analyze/:id", r.getAnalyzeResult, config)
+	r.registerRoute(r.publicGroup, http.MethodGet, "/instagram/image", r.getProxyImage, config)
 }
 
 func (r *Router) registerChannelRoutes() {

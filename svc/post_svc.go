@@ -3,8 +3,11 @@ package svc
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net"
+	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/amahdian/cliplab-be/domain/contracts/resp"
@@ -25,6 +28,7 @@ import (
 type AnalyzeSvc interface {
 	AddRequestToAnalyzeQueue(url url.URL, user *auth.UserInfo, ip net.IP) (*resp.PostQueueResponse, error)
 	GetAnalyzeResult(id uuid.UUID) (*resp.AnalyzeResult, error)
+	Image(imgURL string) ([]byte, string, error)
 }
 
 type analyzeSvc struct {
@@ -242,6 +246,44 @@ func (s *analyzeSvc) GetAnalyzeResult(id uuid.UUID) (*resp.AnalyzeResult, error)
 	}
 
 	return res, nil
+}
+
+func (s *analyzeSvc) Image(imgURL string) ([]byte, string, error) {
+	u, err := url.Parse(imgURL)
+	if err != nil {
+		return nil, "", errs.Newf(errs.InvalidArgument, err, "invalid image url")
+	}
+
+	// Instagram and Facebook CDN hosts validation
+	isValidHost := false
+	validHosts := []string{"cdninstagram.com", "fbcdn.net", "instagram.com"}
+	for _, host := range validHosts {
+		if strings.HasSuffix(u.Host, host) {
+			isValidHost = true
+			break
+		}
+	}
+
+	if !isValidHost {
+		return nil, "", errs.Newf(errs.InvalidArgument, nil, "not a valid instagram image host")
+	}
+
+	resp, err := http.Get(imgURL)
+	if err != nil {
+		return nil, "", errs.Newf(errs.Internal, err, "failed to fetch image")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, "", errs.Newf(errs.Internal, nil, "failed to fetch image, status: %d", resp.StatusCode)
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, "", errs.Newf(errs.Internal, err, "failed to read image body")
+	}
+
+	return data, resp.Header.Get("Content-Type"), nil
 }
 
 func getEstimatedTimeByPlatform(platform model.SocialPlatform) int {

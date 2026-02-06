@@ -59,3 +59,21 @@ func (r *Router) getAnalyzeResult(ctx *gin.Context) {
 
 	resp.Ok(ctx, post)
 }
+
+func (r *Router) getProxyImage(ctx *gin.Context) {
+	reqCtx := req.GetRequestContext(ctx)
+	imgURL := ctx.Query("url")
+	if imgURL == "" {
+		resp.AbortWithError(ctx, errs.Newf(errs.InvalidArgument, nil, "url query parameter is required"))
+		return
+	}
+
+	dSvc := r.svc.NewPostSvc(reqCtx.Ctx)
+	data, contentType, err := dSvc.Image(imgURL)
+	if err != nil {
+		resp.AbortWithError(ctx, err)
+		return
+	}
+
+	ctx.Data(200, contentType, data)
+}
