@@ -13,30 +13,33 @@ import (
 	"github.com/amahdian/cliplab-be/domain/model"
 	"github.com/amahdian/cliplab-be/global/errs"
 	"github.com/amahdian/cliplab-be/storage"
+	"github.com/amahdian/cliplab-be/svc/auth"
 	"github.com/amahdian/cliplab-be/svc/utils"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
 
 type ChannelSvc interface {
-	GetChannelEngagement(urlStr string, platform model.SocialPlatform) (*resp.ChannelEngagementResponse, error)
+	GetChannelEngagement(urlStr string, platform model.SocialPlatform, user *auth.UserInfo) (*resp.ChannelEngagementResponse, error)
 }
 
 type channelSvc struct {
 	ctx           context.Context
 	stg           storage.PgStorage
 	scraperClient scrapecreators.Client
+	creditSvc     CreditSvc
 }
 
-func newChannelSvc(ctx context.Context, stg storage.PgStorage, scraperClient scrapecreators.Client) ChannelSvc {
+func newChannelSvc(ctx context.Context, stg storage.PgStorage, scraperClient scrapecreators.Client, creditSvc CreditSvc) ChannelSvc {
 	return &channelSvc{
 		ctx:           ctx,
 		stg:           stg,
 		scraperClient: scraperClient,
+		creditSvc:     creditSvc,
 	}
 }
 
-func (s *channelSvc) GetChannelEngagement(urlStr string, platform model.SocialPlatform) (*resp.ChannelEngagementResponse, error) {
+func (s *channelSvc) GetChannelEngagement(urlStr string, platform model.SocialPlatform, user *auth.UserInfo) (*resp.ChannelEngagementResponse, error) {
 	var err error
 	if platform == "" || platform == model.PlatformUnknown {
 		u, err := url.Parse(urlStr)
@@ -52,6 +55,20 @@ func (s *channelSvc) GetChannelEngagement(urlStr string, platform model.SocialPl
 	handle := s.extractHandle(urlStr, platform)
 	if handle == "" {
 		return nil, errs.Newf(errs.InvalidArgument, nil, "could not extract handle from url")
+	}
+
+	var remainingCredits *int
+	canSeeBreakdown := false
+	if user != nil {
+		if credits, err := s.creditSvc.CheckAndDeduct(user.Id, model.CreditKeyEngagementBreakdown); err == nil {
+			remainingCredits = &credits
+			canSeeBreakdown = true
+		} else {
+			// If deduction fails (e.g. no credits), still try to get current balance for display
+			if credits, err := s.creditSvc.GetBalance(user.Id); err == nil {
+				remainingCredits = &credits
+			}
+		}
 	}
 
 	// Check DB for existing channel data
@@ -70,7 +87,13 @@ func (s *channelSvc) GetChannelEngagement(urlStr string, platform model.SocialPl
 			AveragePlayCount:      channel.LastHistory.AverageVideoPlays,
 			AverageEngagementRate: channel.LastHistory.AverageEngagementRate,
 			LatestPostPublishDate: channel.LastHistory.LatestPostPublishDate,
-			Breakdown:             s.mapPostsToBreakdown(posts, channel.LastHistory.FollowersCount),
+			Breakdown: func() []*resp.PostBreakdown {
+				if canSeeBreakdown {
+					return s.mapPostsToBreakdown(posts, channel.LastHistory.FollowersCount)
+				}
+				return []*resp.PostBreakdown{}
+			}(),
+			Credits: remainingCredits,
 		}, nil
 	}
 
@@ -98,7 +121,13 @@ func (s *channelSvc) GetChannelEngagement(urlStr string, platform model.SocialPl
 		fmt.Printf("failed to store channel data: %v\n", err)
 	}
 
-	result.Breakdown = s.mapPostsToBreakdown(posts, result.FollowersCount)
+	if canSeeBreakdown {
+		result.Breakdown = s.mapPostsToBreakdown(posts, result.FollowersCount)
+	} else {
+		result.Breakdown = []*resp.PostBreakdown{}
+	}
+
+	result.Credits = remainingCredits
 
 	return result, nil
 }
@@ -213,8 +242,8 @@ func (s *channelSvc) getInstagramEngagement(handle string) ([]*model.Post, *resp
 		}
 
 		post := &model.Post{
-			ID:               item.ID,
-			Link:             fmt.Sprintf("https://www.instagram.com/p/%s/", item.ID),
+			ID:               item.Code,
+			Link:             fmt.Sprintf("https://www.instagram.com/p/%s/", item.Code),
 			ImageURL:         &item.DisplayUri,
 			Format:           format,
 			UserName:         owner.Username,

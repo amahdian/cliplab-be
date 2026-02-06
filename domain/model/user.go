@@ -23,6 +23,7 @@ type User struct {
 	ProviderID      *string   `json:"-"` // User's ID from the provider
 	ProfileImage    *string   `json:"profileImage"`
 	DefaultLanguage Language  `json:"defaultLanguage"`
+	Credits         int       `json:"credits"`
 
 	VerifiedAt *time.Time `json:"verifiedAt,omitempty"`
 	CreatedAt  time.Time  `json:"-"`

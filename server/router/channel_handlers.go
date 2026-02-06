@@ -16,7 +16,7 @@ func (r *Router) getChannelEngagementRate(ctx *gin.Context) {
 	}
 
 	channelSvc := r.svc.NewChannelSvc(reqCtx.Ctx)
-	res, err := channelSvc.GetChannelEngagement(request.URL, request.Platform)
+	res, err := channelSvc.GetChannelEngagement(request.URL, request.Platform, reqCtx.UserInfo)
 	if err != nil {
 		resp.AbortWithError(ctx, err)
 		return

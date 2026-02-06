@@ -13,6 +13,10 @@ func (r *Router) setupRoutes() {
 		"/v1",
 		middleware.VerifyAuth(r.authenticator),
 	)
+	r.optionalAuthGroup = r.Group(
+		"/v1",
+		middleware.WithAuth(r.authenticator),
+	)
 
 	r.registerPublicRoutes()
 	r.registerUserRoutes()
@@ -52,7 +56,7 @@ func (r *Router) registerChannelRoutes() {
 	config := newRouteConfig()
 	recaptchaMiddleware := middleware.VerifyRecaptcha(r.configs.Recaptcha.Secret)
 
-	r.registerRoute(r.publicGroup, http.MethodGet, "/channels/engagement-rate", r.getChannelEngagementRate, config.withMiddlewares(recaptchaMiddleware))
+	r.registerRoute(r.optionalAuthGroup, http.MethodGet, "/channels/engagement-rate", r.getChannelEngagementRate, config.withMiddlewares(recaptchaMiddleware))
 }
 
 func (r *Router) registerWebSocketRoutes() {

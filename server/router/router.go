@@ -32,8 +32,9 @@ type Router struct {
 
 	authenticator auth.Authenticator
 
-	publicGroup *gin.RouterGroup
-	authGroup   *gin.RouterGroup
+	publicGroup       *gin.RouterGroup
+	authGroup         *gin.RouterGroup
+	optionalAuthGroup *gin.RouterGroup
 }
 
 func NewRouter(

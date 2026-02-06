@@ -16,6 +16,7 @@ type ChannelEngagementResponse struct {
 	AverageEngagementRate float64          `json:"averageEngagementRate"`
 	LatestPostPublishDate time.Time        `json:"latestPostPublishDate"`
 	Breakdown             []*PostBreakdown `json:"breakdown"`
+	Credits               *int             `json:"credits,omitempty"`
 }
 
 type PostBreakdown struct {
