@@ -28,3 +28,19 @@ func (r *Router) createCheckout(ctx *gin.Context) {
 		TransactionID: transactionID,
 	})
 }
+
+func (r *Router) getCustomerPortalUrl(ctx *gin.Context) {
+	reqCtx := req.GetRequestContext(ctx)
+	user := reqCtx.UserInfo.User()
+
+	dSvc := r.svc.NewBillingSvc(reqCtx.Ctx)
+	url, err := dSvc.GetCustomerPortalUrl(user.ID)
+	if err != nil {
+		resp.AbortWithError(ctx, err)
+		return
+	}
+
+	resp.Ok(ctx, gin.H{
+		"url": url,
+	})
+}

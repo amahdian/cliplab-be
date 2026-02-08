@@ -10,7 +10,7 @@ import (
 )
 
 type CreditSvc interface {
-	CheckAndDeduct(userId uuid.UUID, ruleKey string) (int, error)
+	CheckAndDeduct(userId uuid.UUID, ruleKey model.Tool) (int, error)
 	GetBalance(userId uuid.UUID) (int, error)
 	AddCredits(userId uuid.UUID, amount int) error
 }
@@ -27,7 +27,7 @@ func newCreditSvc(ctx context.Context, stg storage.PgStorage) CreditSvc {
 	}
 }
 
-func (s *creditSvc) CheckAndDeduct(userId uuid.UUID, ruleKey string) (int, error) {
+func (s *creditSvc) CheckAndDeduct(userId uuid.UUID, ruleKey model.Tool) (int, error) {
 	rule := model.GetCreditRule(ruleKey)
 	if rule == nil {
 		return 0, errs.Newf(errs.InvalidArgument, nil, "invalid credit rule key: %s", ruleKey)

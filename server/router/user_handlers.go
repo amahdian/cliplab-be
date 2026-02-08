@@ -3,6 +3,7 @@ package router
 import (
 	"github.com/amahdian/cliplab-be/domain/contracts/req"
 	"github.com/amahdian/cliplab-be/domain/contracts/resp"
+	"github.com/amahdian/cliplab-be/domain/model/common"
 	"github.com/gin-gonic/gin"
 )
 
@@ -123,4 +124,23 @@ func (r *Router) me(ctx *gin.Context) {
 	}
 
 	resp.Ok(ctx, userData)
+}
+
+func (r *Router) getUserHistory(ctx *gin.Context) {
+	reqCtx := req.GetRequestContext(ctx)
+
+	pagination := common.DefaultPagination()
+	if err := ctx.BindQuery(pagination); err != nil {
+		resp.AbortWithError(ctx, err)
+		return
+	}
+
+	historySvc := r.svc.NewHistorySvc(reqCtx.Ctx)
+	histories, err := historySvc.GetUserHistory(reqCtx.UserInfo.Id, pagination)
+	if err != nil {
+		resp.AbortWithError(ctx, err)
+		return
+	}
+
+	resp.PaginatedOk(ctx, resp.MapUsageHistoriesToResponse(histories), pagination)
 }

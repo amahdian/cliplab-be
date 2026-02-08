@@ -20,6 +20,7 @@ import (
 type BillingSvc interface {
 	HandleWebhook(payload []byte, signature string) error
 	CreateCheckout(userId uuid.UUID, priceId string) (string, string, error)
+	GetCustomerPortalUrl(userId uuid.UUID) (string, error)
 }
 
 type billingSvc struct {
@@ -219,4 +220,59 @@ func (s *billingSvc) CreateCheckout(userId uuid.UUID, priceId string) (string, s
 	}
 
 	return checkoutURL, result.Data.ID, nil
+}
+
+func (s *billingSvc) GetCustomerPortalUrl(userId uuid.UUID) (string, error) {
+	// 0. Fetch user to get paddleCustomerId
+	user, err := s.stg.User(s.ctx).FindById(userId)
+	if err != nil || user == nil {
+		return "", errs.Newf(errs.NotFound, err, "user not found")
+	}
+
+	if user.PaddleCustomerID == nil || *user.PaddleCustomerID == "" {
+		return "", errs.Newf(errs.DependencyConflict, nil, "no active billing profile found for this user")
+	}
+
+	// 1. Prepare Paddle portal session request
+	// Endpoint: POST /customers/{customer_id}/portal-sessions
+	client := &http.Client{}
+	url := fmt.Sprintf("%s/customers/%s/portal-sessions", s.envs.Paddle.APIBaseURL, *user.PaddleCustomerID)
+	req, err := http.NewRequest("POST", url, nil)
+	if err != nil {
+		return "", errs.Wrapf(err, "failed to create paddle portal session request")
+	}
+
+	req.Header.Set("Authorization", "Bearer "+s.envs.Paddle.SecretKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", errs.Wrapf(err, "paddle portal session api call failed")
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("paddle api error creating portal session (status %d): %s", resp.StatusCode, string(body))
+	}
+
+	var result struct {
+		Data struct {
+			URLs struct {
+				General struct {
+					Overview string `json:"overview"`
+				} `json:"general"`
+			} `json:"urls"`
+		} `json:"data"`
+	}
+
+	if err := json.Unmarshal(body, &result); err != nil {
+		return "", errs.Wrapf(err, "failed to decode paddle portal session response")
+	}
+
+	if result.Data.URLs.General.Overview == "" {
+		return "", fmt.Errorf("paddle returned empty portal url")
+	}
+
+	return result.Data.URLs.General.Overview, nil
 }

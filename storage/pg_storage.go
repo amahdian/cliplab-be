@@ -12,6 +12,7 @@ type PgStorage interface {
 	Channel(ctx context.Context) ChannelStorage
 	ChannelHistory(ctx context.Context) ChannelHistoryStorage
 	Subscription(ctx context.Context) SubscriptionStorage
+	UsageHistory(ctx context.Context) UsageHistoryStorage
 }
 
 type Session interface {

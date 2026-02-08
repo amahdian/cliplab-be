@@ -13,6 +13,7 @@ const (
 	PlatformTwitter   SocialPlatform = "twitter"
 	PlatformYouTube   SocialPlatform = "youtube"
 	PlatformTikTok    SocialPlatform = "tiktok"
+	PlatformGeneral   SocialPlatform = "general"
 	PlatformUnknown   SocialPlatform = "unknown"
 )
 

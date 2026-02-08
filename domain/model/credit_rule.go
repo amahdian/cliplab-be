@@ -15,13 +15,13 @@ type CreditRule struct {
 	Name     string `json:"name"`
 	Category string `json:"category"`
 	Amount   int    `json:"amount"`
-	Key      string `json:"key"`
+	Key      Tool   `json:"key"`
 }
 
 const (
-	CreditKeyEngagementRate      = "engagement_rate"
-	CreditKeyEngagementBreakdown = "engagement_breakdown"
-	CreditKeyReelAnalyze         = "reel_analyze"
+	CreditKeyEngagementRate      Tool = "engagement_rate"
+	CreditKeyEngagementBreakdown Tool = ToolChannelEngagement
+	CreditKeyReelAnalyze         Tool = ToolVideoAnalysis
 )
 
 var CreditRules = []CreditRule{
@@ -45,7 +45,7 @@ var CreditRules = []CreditRule{
 	},
 }
 
-func GetCreditRule(key string) *CreditRule {
+func GetCreditRule(key Tool) *CreditRule {
 	for _, rule := range CreditRules {
 		if rule.Key == key {
 			return &rule

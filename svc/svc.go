@@ -21,6 +21,7 @@ type Svc interface {
 	NewChannelSvc(ctx context.Context) ChannelSvc
 	NewCreditSvc(ctx context.Context) CreditSvc
 	NewBillingSvc(ctx context.Context) BillingSvc
+	NewHistorySvc(ctx context.Context) HistorySvc
 }
 
 type StorageConfig struct {
@@ -64,11 +65,11 @@ func (s *svcImpl) NewFileSvc(ctx context.Context) FileSvc {
 }
 
 func (s *svcImpl) NewPostSvc(ctx context.Context) AnalyzeSvc {
-	return newAnalyzeSvc(ctx, s.pgStg, s.Envs, s.redisClient, s.NewFileSvc(ctx), s.NewCreditSvc(ctx))
+	return newAnalyzeSvc(ctx, s.pgStg, s.Envs, s.redisClient, s.NewFileSvc(ctx), s.NewCreditSvc(ctx), s.NewHistorySvc(ctx))
 }
 
 func (s *svcImpl) NewQueueSvc(ctx context.Context) QueueSvc {
-	return newPostQueueSvc(ctx, s.pgStg, s.Envs, s.geminiClient, s.scraperClient)
+	return newPostQueueSvc(ctx, s.pgStg, s.Envs, s.geminiClient, s.scraperClient, s.NewHistorySvc(ctx), s.NewCreditSvc(ctx))
 }
 
 func (s *svcImpl) NewWebSocketSvc(ctx context.Context) WebSocketSvc {
@@ -76,7 +77,7 @@ func (s *svcImpl) NewWebSocketSvc(ctx context.Context) WebSocketSvc {
 }
 
 func (s *svcImpl) NewChannelSvc(ctx context.Context) ChannelSvc {
-	return newChannelSvc(ctx, s.pgStg, s.scraperClient, s.NewCreditSvc(ctx))
+	return newChannelSvc(ctx, s.pgStg, s.scraperClient, s.NewCreditSvc(ctx), s.NewHistorySvc(ctx))
 }
 
 func (s *svcImpl) NewCreditSvc(ctx context.Context) CreditSvc {
@@ -85,4 +86,8 @@ func (s *svcImpl) NewCreditSvc(ctx context.Context) CreditSvc {
 
 func (s *svcImpl) NewBillingSvc(ctx context.Context) BillingSvc {
 	return newBillingSvc(ctx, s.pgStg, s.Envs, s.NewCreditSvc(ctx))
+}
+
+func (s *svcImpl) NewHistorySvc(ctx context.Context) HistorySvc {
+	return newHistorySvc(ctx, s.pgStg)
 }

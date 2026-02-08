@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"encoding/json"
+
 	"github.com/amahdian/cliplab-be/clients/scrapecreators"
 	"github.com/amahdian/cliplab-be/domain/contracts/resp"
 	"github.com/amahdian/cliplab-be/domain/model"
@@ -28,14 +30,16 @@ type channelSvc struct {
 	stg           storage.PgStorage
 	scraperClient scrapecreators.Client
 	creditSvc     CreditSvc
+	historySvc    HistorySvc
 }
 
-func newChannelSvc(ctx context.Context, stg storage.PgStorage, scraperClient scrapecreators.Client, creditSvc CreditSvc) ChannelSvc {
+func newChannelSvc(ctx context.Context, stg storage.PgStorage, scraperClient scrapecreators.Client, creditSvc CreditSvc, historySvc HistorySvc) ChannelSvc {
 	return &channelSvc{
 		ctx:           ctx,
 		stg:           stg,
 		scraperClient: scraperClient,
 		creditSvc:     creditSvc,
+		historySvc:    historySvc,
 	}
 }
 
@@ -57,17 +61,48 @@ func (s *channelSvc) GetChannelEngagement(urlStr string, platform model.SocialPl
 		return nil, errs.Newf(errs.InvalidArgument, nil, "could not extract handle from url")
 	}
 
-	var remainingCredits *int
+	var result *resp.ChannelEngagementResponse
+	var remainingCredits int
+	var creditsUsed int
 	canSeeBreakdown := false
+
+	// Handle history and credit reversal
+	defer func() {
+		if user == nil {
+			return
+		}
+
+		status := model.UsageStatusCompleted
+		respLog := ""
+
+		if err != nil {
+			status = model.UsageStatusFailed
+			respLog = err.Error()
+			// Refund credits if there was an error
+			if creditsUsed > 0 {
+				_ = s.creditSvc.AddCredits(user.Id, creditsUsed)
+				remainingCredits += creditsUsed // Update local variable for history record accuracy
+			}
+		} else if result != nil {
+			respJSON, _ := json.Marshal(result)
+			respLog = string(respJSON)
+		}
+
+		_ = s.historySvc.StoreUsage(user.Id, model.ToolChannelEngagement, creditsUsed, remainingCredits, handle, platform, "engagement", status, nil, respLog)
+	}()
+
 	if user != nil {
-		if credits, err := s.creditSvc.CheckAndDeduct(user.Id, model.CreditKeyEngagementBreakdown); err == nil {
-			remainingCredits = &credits
+		if credits, creditErr := s.creditSvc.CheckAndDeduct(user.Id, model.CreditKeyEngagementBreakdown); creditErr == nil {
+			remainingCredits = credits
+			creditsUsed = model.GetCreditRule(model.CreditKeyEngagementBreakdown).Amount
 			canSeeBreakdown = true
 		} else {
-			// If deduction fails (e.g. no credits), still try to get current balance for display
-			if credits, err := s.creditSvc.GetBalance(user.Id); err == nil {
-				remainingCredits = &credits
+			// If deduction fails, catch balance for display but creditsUsed remains 0
+			if credits, balErr := s.creditSvc.GetBalance(user.Id); balErr == nil {
+				remainingCredits = credits
 			}
+			// If the reason for deduction failure was NOT insufficient credits, we might want to return an error
+			// but for now, we just follow existing logic where free users get limited data.
 		}
 	}
 
@@ -75,7 +110,7 @@ func (s *channelSvc) GetChannelEngagement(urlStr string, platform model.SocialPl
 	channel, _ := s.stg.Channel(s.ctx).FindByHandler(handle)
 	if channel != nil && channel.LastHistory != nil && time.Since(channel.LastHistory.CreatedAt) < 2*24*time.Hour {
 		posts, _ := s.stg.Post(s.ctx).ListBy("channel_id = ?", channel.ID)
-		return &resp.ChannelEngagementResponse{
+		result = &resp.ChannelEngagementResponse{
 			ProfileImage:          channel.LastHistory.ProfileImage,
 			ProfileUrl:            s.generateProfileUrl(handle, platform),
 			ProfileDescriptor:     channel.LastHistory.ProfileDescriptor,
@@ -93,11 +128,11 @@ func (s *channelSvc) GetChannelEngagement(urlStr string, platform model.SocialPl
 				}
 				return []*resp.PostBreakdown{}
 			}(),
-			Credits: remainingCredits,
-		}, nil
+			Credits: &remainingCredits,
+		}
+		return result, nil
 	}
 
-	var result *resp.ChannelEngagementResponse
 	var posts []*model.Post
 	switch platform {
 	case model.PlatformInstagram:
@@ -107,7 +142,8 @@ func (s *channelSvc) GetChannelEngagement(urlStr string, platform model.SocialPl
 	case model.PlatformTwitter:
 		posts, result, err = s.getTwitterEngagement(handle)
 	default:
-		return nil, errs.Newf(errs.InvalidArgument, nil, "engagement rate calculation not supported for this platform yet")
+		err = errs.Newf(errs.InvalidArgument, nil, "engagement rate calculation not supported for this platform yet")
+		return nil, err
 	}
 
 	if err != nil {
@@ -115,11 +151,7 @@ func (s *channelSvc) GetChannelEngagement(urlStr string, platform model.SocialPl
 	}
 
 	// Store data in DB
-	err = s.storeChannelData(handle, platform, result, posts)
-	if err != nil {
-		// Log error but return result anyway? Usually yes for caching.
-		fmt.Printf("failed to store channel data: %v\n", err)
-	}
+	_ = s.storeChannelData(handle, platform, result, posts)
 
 	if canSeeBreakdown {
 		result.Breakdown = s.mapPostsToBreakdown(posts, result.FollowersCount)
@@ -127,7 +159,7 @@ func (s *channelSvc) GetChannelEngagement(urlStr string, platform model.SocialPl
 		result.Breakdown = []*resp.PostBreakdown{}
 	}
 
-	result.Credits = remainingCredits
+	result.Credits = &remainingCredits
 
 	return result, nil
 }

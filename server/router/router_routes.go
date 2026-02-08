@@ -30,6 +30,7 @@ func (r *Router) setupRoutes() {
 func (r *Router) registerBillingRoutes() {
 	config := newRouteConfig()
 	r.registerRoute(r.authGroup, http.MethodPost, "/billing/checkout", r.createCheckout, config)
+	r.registerRoute(r.authGroup, http.MethodGet, "/billing/portal", r.getCustomerPortalUrl, config)
 }
 
 func (r *Router) registerWebhookRoutes() {
@@ -54,6 +55,7 @@ func (r *Router) registerUserRoutes() {
 	r.registerRoute(r.publicGroup, http.MethodPost, "/users/verify", r.verify, config)
 	r.registerRoute(r.authGroup, http.MethodPut, "/users/update", r.updateUser, config)
 	r.registerRoute(r.authGroup, http.MethodGet, "/users/me", r.me, config)
+	r.registerRoute(r.authGroup, http.MethodGet, "/users/history", r.getUserHistory, config)
 }
 
 func (r *Router) registerAnalyzeRoutes() {

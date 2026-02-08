@@ -39,6 +39,7 @@ type analyzeSvc struct {
 	fileSvc     FileSvc
 	RedisClient *redis.Client
 	creditSvc   CreditSvc
+	historySvc  HistorySvc
 }
 
 func newAnalyzeSvc(
@@ -47,7 +48,8 @@ func newAnalyzeSvc(
 	envs *env.Envs,
 	redisClient *redis.Client,
 	fileSvc FileSvc,
-	creditSvc CreditSvc) AnalyzeSvc {
+	creditSvc CreditSvc,
+	historySvc HistorySvc) AnalyzeSvc {
 	return &analyzeSvc{
 		ctx:         ctx,
 		stg:         stg,
@@ -55,6 +57,7 @@ func newAnalyzeSvc(
 		RedisClient: redisClient,
 		fileSvc:     fileSvc,
 		creditSvc:   creditSvc,
+		historySvc:  historySvc,
 	}
 }
 
@@ -72,66 +75,54 @@ func (s *analyzeSvc) AddRequestToAnalyzeQueue(url url.URL, user *auth.UserInfo, 
 		return nil, errs.Wrapf(err, "failed to find post by hash id %s", shortcode)
 	}
 
+	var result *resp.PostQueueResponse
+	var analyzeRequest *model.AnalyzeRequest
+	var creditsUsed int
+	var remainingCredits int
+
+	// Handle history and credit reversal
+	defer func() {
+		if user == nil || user.Id == uuid.Nil {
+			return
+		}
+
+		if err != nil {
+			// Refund credits if there was an error during queuing phase
+			if creditsUsed > 0 {
+				_ = s.creditSvc.AddCredits(user.Id, creditsUsed)
+				remainingCredits += creditsUsed
+			}
+			// Log failure history immediately
+			_ = s.historySvc.StoreUsage(user.Id, model.ToolVideoAnalysis, creditsUsed, remainingCredits, url.String(), platform, "analysis", model.UsageStatusFailed, nil, err.Error())
+		} else if analyzeRequest != nil {
+			// Success in queuing: store the "Processing" record
+			_ = s.historySvc.StoreUsage(user.Id, model.ToolVideoAnalysis, creditsUsed, remainingCredits, url.String(), platform, "analysis", model.UsageStatusProcessing, &analyzeRequest.ID, "")
+		}
+	}()
+
 	now := time.Now()
 
 	if user == nil || user.Id == uuid.Nil {
-		return nil, errs.Newf(errs.PermissionDenied, nil, "payment required")
-	}
-
-	// Dedut credits for registered users
-	if _, err := s.creditSvc.CheckAndDeduct(user.Id, model.CreditKeyReelAnalyze); err != nil {
+		err = errs.Newf(errs.PermissionDenied, nil, "payment required")
 		return nil, err
 	}
 
-	var analyzeRequest *model.AnalyzeRequest
-
-	// get request for the post
-	var requests []*model.AnalyzeRequest
-	if post.ID != "" {
-		requests, err = s.stg.AnalyzeRequest(s.ctx).ListByPostId(post.ID)
-		if err != nil {
-			return nil, errs.Wrapf(err, "failed to find request by post id %s", post.ID)
-		}
-	}
-
-	for _, request := range requests {
-		if user.Id != uuid.Nil && request.UserId != nil && *request.UserId == user.Id {
-			analyzeRequest = request
-			break
-		}
-		if user.Id == uuid.Nil && request.UserId == nil && request.UserIP == ip.String() {
-			analyzeRequest = request
-			break
-		}
-	}
-	if analyzeRequest == nil {
-		analyzeRequest = &model.AnalyzeRequest{
-			UserIP: ip.String(),
-			Link:   url.String(),
-			Status: model.RequestStatusPending,
-		}
-		if user.Id != uuid.Nil {
-			analyzeRequest.UserId = &user.Id
-		}
-	}
-
-	if len(requests) > 0 {
-		analyzeRequest.Status = requests[0].Status
-	}
-	if post.ID != "" {
-		analyzeRequest.PostId = lo.ToPtr(post.ID)
-	}
-
-	if err := s.stg.AnalyzeRequest(s.ctx).UpsertOne(analyzeRequest, false); err != nil {
-		return nil, errs.Newf(errs.Internal, err, "failed to save analyze requet")
+	// Dedut credits for registered users
+	if rem, creditErr := s.creditSvc.CheckAndDeduct(user.Id, model.CreditKeyReelAnalyze); creditErr == nil {
+		remainingCredits = rem
+		creditsUsed = model.GetCreditRule(model.CreditKeyReelAnalyze).Amount
+	} else {
+		err = creditErr
+		return nil, err
 	}
 
 	if analyzeRequest.Status == model.RequestStatusCompleted {
 		if post.UpdatedAt.After(now.Add(-1200 * time.Hour)) {
-			return &resp.PostQueueResponse{
+			result = &resp.PostQueueResponse{
 				RequestId:     analyzeRequest.ID.String(),
 				EstimatedTime: 0,
-			}, nil
+			}
+			return result, nil
 		} else {
 			jsonData, _ := json.Marshal(&model.PostQueueData{
 				Id:       analyzeRequest.ID,
@@ -161,10 +152,11 @@ func (s *analyzeSvc) AddRequestToAnalyzeQueue(url url.URL, user *auth.UserInfo, 
 		return nil, errs.Newf(errs.Internal, err, "failed to publish post")
 	}
 
-	return &resp.PostQueueResponse{
+	result = &resp.PostQueueResponse{
 		RequestId:     analyzeRequest.ID.String(),
 		EstimatedTime: estimatedTime,
-	}, nil
+	}
+	return result, nil
 }
 
 func (s *analyzeSvc) GetAnalyzeResult(id uuid.UUID) (*resp.AnalyzeResult, error) {

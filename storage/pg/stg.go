@@ -136,3 +136,7 @@ func (stg *Stg) ChannelHistory(ctx context.Context) storage.ChannelHistoryStorag
 func (stg *Stg) Subscription(ctx context.Context) storage.SubscriptionStorage {
 	return NewSubscriptionStg(stg.mustOrmSession(ctx))
 }
+
+func (stg *Stg) UsageHistory(ctx context.Context) storage.UsageHistoryStorage {
+	return NewUsageHistoryStg(stg.mustOrmSession(ctx))
+}

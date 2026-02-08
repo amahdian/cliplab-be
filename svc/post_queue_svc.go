@@ -31,25 +31,49 @@ type postQueueSvc struct {
 
 	GeminiClient  gemini.Client
 	ScraperClient scrapecreators.Client
+	historySvc    HistorySvc
+	creditSvc     CreditSvc
 }
 
-func newPostQueueSvc(ctx context.Context, stg storage.PgStorage, envs *env.Envs, geminiClient gemini.Client, scraperClient scrapecreators.Client) QueueSvc {
+func newPostQueueSvc(ctx context.Context, stg storage.PgStorage, envs *env.Envs, geminiClient gemini.Client, scraperClient scrapecreators.Client, historySvc HistorySvc, creditSvc CreditSvc) QueueSvc {
 	return &postQueueSvc{
 		ctx:           ctx,
 		stg:           stg,
 		envs:          envs,
 		GeminiClient:  geminiClient,
 		ScraperClient: scraperClient,
+		historySvc:    historySvc,
+		creditSvc:     creditSvc,
 	}
 }
 
-func (s *postQueueSvc) ProcessRequest(url string, requestId uuid.UUID, platform model.SocialPlatform) error {
+func (s *postQueueSvc) ProcessRequest(url string, requestId uuid.UUID, platform model.SocialPlatform) (err error) {
 	logger.Debug("Processing post:", url)
 
 	request, err := s.stg.AnalyzeRequest(s.ctx).FindById(requestId)
 	if err != nil {
 		return err
 	}
+
+	// Handle history and potential refund on background failure
+	defer func() {
+		status := model.UsageStatusCompleted
+		respLog := request.LlmResponse
+
+		if err != nil {
+			status = model.UsageStatusFailed
+			respLog = err.Error()
+
+			// If it's a permanent failure, refund the credits
+			// We can check if it's a registered user
+			if request.UserId != nil {
+				credits := model.GetCreditRule(model.CreditKeyReelAnalyze).Amount
+				_ = s.creditSvc.AddCredits(*request.UserId, credits)
+			}
+		}
+
+		_ = s.historySvc.UpdateUsageByRequestID(requestId, status, respLog)
+	}()
 
 	var post *model.Post
 	if request.PostId != nil {
@@ -79,10 +103,12 @@ func (s *postQueueSvc) ProcessRequest(url string, requestId uuid.UUID, platform 
 
 	switch platform {
 	case model.PlatformInstagram:
-		reelDto, otherReelsDto, err := s.renewInstagramScrap(post)
+		var reelDto *scrapecreators.ReelData
+		var otherReelsDto *scrapecreators.ReelsResponse
+		reelDto, otherReelsDto, err = s.renewInstagramScrap(post)
 		if err != nil {
-			request.Status = model.RequestStatusFailed
 			request.FailReason = lo.ToPtr(err.Error())
+			request.Status = model.RequestStatusFailed
 			_ = s.stg.AnalyzeRequest(s.ctx).UpdateOne(request, false)
 			return err
 		} else {
@@ -94,24 +120,40 @@ func (s *postQueueSvc) ProcessRequest(url string, requestId uuid.UUID, platform 
 				return err
 			}
 		}
-		break
 	}
 
 	request.FailReason = nil
 	request.Status = model.RequestStatusCompleted
-
 	_ = s.stg.AnalyzeRequest(s.ctx).UpdateOne(request, false)
 
-	return err
+	return nil
 }
 
-func (s *postQueueSvc) RenewPost(url string, requestId uuid.UUID, platform model.SocialPlatform) error {
+func (s *postQueueSvc) RenewPost(url string, requestId uuid.UUID, platform model.SocialPlatform) (err error) {
 	logger.Debug("Renew post stats:", url)
 
 	request, err := s.stg.AnalyzeRequest(s.ctx).FindById(requestId)
 	if err != nil {
 		return err
 	}
+
+	// Handle history and potential refund
+	defer func() {
+		status := model.UsageStatusCompleted
+		respLog := ""
+
+		if err != nil {
+			status = model.UsageStatusFailed
+			respLog = err.Error()
+			// For analysis, we might want to refund if background renew fails
+			if request.UserId != nil {
+				credits := model.GetCreditRule(model.CreditKeyReelAnalyze).Amount
+				_ = s.creditSvc.AddCredits(*request.UserId, credits)
+			}
+		}
+
+		_ = s.historySvc.UpdateUsageByRequestID(requestId, status, respLog)
+	}()
 
 	request.Status = model.RequestStatusProcessing
 	_ = s.stg.AnalyzeRequest(s.ctx).UpdateOne(request, false)
