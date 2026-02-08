@@ -12,6 +12,7 @@ import (
 type CreditSvc interface {
 	CheckAndDeduct(userId uuid.UUID, ruleKey string) (int, error)
 	GetBalance(userId uuid.UUID) (int, error)
+	AddCredits(userId uuid.UUID, amount int) error
 }
 
 type creditSvc struct {
@@ -67,4 +68,21 @@ func (s *creditSvc) GetBalance(userId uuid.UUID) (int, error) {
 		return 0, errs.Newf(errs.NotFound, nil, "user not found")
 	}
 	return user.Credits, nil
+}
+
+func (s *creditSvc) AddCredits(userId uuid.UUID, amount int) error {
+	user, err := s.stg.User(s.ctx).FindById(userId)
+	if err != nil {
+		return errs.Wrapf(err, "failed to find user")
+	}
+	if user == nil {
+		return errs.Newf(errs.NotFound, nil, "user not found")
+	}
+
+	user.Credits += amount
+	if err := s.stg.User(s.ctx).UpdateOne(user, false); err != nil {
+		return errs.Wrapf(err, "failed to add credits")
+	}
+
+	return nil
 }

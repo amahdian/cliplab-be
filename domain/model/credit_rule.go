@@ -1,6 +1,15 @@
 package model
 
 const FreeCreditAmount = 200
+const StarterCreditAmount = 2000
+const CreatorCreditAmount = 8000
+const StudioCreditAmount = 20000
+
+var PlanCredits = map[string]int{
+	"pri_01kfxyf1fet153za7jmgj4dd0p": StarterCreditAmount,
+	"pri_01kfxyg0qcrqk571v48vjzzy08": CreatorCreditAmount,
+	"pri_01kfxybm6ee1ccp1fa4hd8gf7d": StudioCreditAmount,
+}
 
 type CreditRule struct {
 	Name     string `json:"name"`

@@ -20,6 +20,7 @@ type Svc interface {
 	NewWebSocketSvc(ctx context.Context) WebSocketSvc
 	NewChannelSvc(ctx context.Context) ChannelSvc
 	NewCreditSvc(ctx context.Context) CreditSvc
+	NewBillingSvc(ctx context.Context) BillingSvc
 }
 
 type StorageConfig struct {
@@ -80,4 +81,8 @@ func (s *svcImpl) NewChannelSvc(ctx context.Context) ChannelSvc {
 
 func (s *svcImpl) NewCreditSvc(ctx context.Context) CreditSvc {
 	return newCreditSvc(ctx, s.pgStg)
+}
+
+func (s *svcImpl) NewBillingSvc(ctx context.Context) BillingSvc {
+	return newBillingSvc(ctx, s.pgStg, s.Envs, s.NewCreditSvc(ctx))
 }

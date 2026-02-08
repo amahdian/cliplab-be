@@ -68,6 +68,11 @@ type Envs struct {
 		SecretKey string `env:"S3_SECRET_KEY"`
 		Region    string `env:"S3_REGION"`
 	}
+
+	Paddle struct {
+		SecretKey  string `env:"PADDLE_SECRET_KEY"`
+		APIBaseURL string `env:"PADDLE_API_BASE_URL, default=https://sandbox-api.paddle.com"`
+	}
 }
 
 // Load loads the environment variables from the .env files

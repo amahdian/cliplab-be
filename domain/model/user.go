@@ -28,6 +28,12 @@ type User struct {
 	VerifiedAt *time.Time `json:"verifiedAt,omitempty"`
 	CreatedAt  time.Time  `json:"-"`
 	UpdatedAt  time.Time  `json:"-"`
+
+	// Paddle Integration
+	PaddleCustomerID   *string `json:"paddleCustomerId"`
+	SubscriptionID     *string `json:"subscriptionId"`
+	PriceID            *string `json:"priceId"`
+	SubscriptionStatus *string `json:"subscriptionStatus"`
 }
 
 func (*User) TableName() string {

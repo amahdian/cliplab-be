@@ -11,6 +11,7 @@ type PgStorage interface {
 	PostAnalysis(ctx context.Context) PostAnalysisStorage
 	Channel(ctx context.Context) ChannelStorage
 	ChannelHistory(ctx context.Context) ChannelHistoryStorage
+	Subscription(ctx context.Context) SubscriptionStorage
 }
 
 type Session interface {

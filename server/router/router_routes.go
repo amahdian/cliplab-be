@@ -23,6 +23,18 @@ func (r *Router) setupRoutes() {
 	r.registerAnalyzeRoutes()
 	r.registerChannelRoutes()
 	r.registerWebSocketRoutes()
+	r.registerWebhookRoutes()
+	r.registerBillingRoutes()
+}
+
+func (r *Router) registerBillingRoutes() {
+	config := newRouteConfig()
+	r.registerRoute(r.authGroup, http.MethodPost, "/billing/checkout", r.createCheckout, config)
+}
+
+func (r *Router) registerWebhookRoutes() {
+	config := newRouteConfig()
+	r.registerRoute(r.publicGroup, http.MethodPost, "/webhook/paddle", r.paddleWebhook, config)
 }
 
 func (r *Router) registerPublicRoutes() {
