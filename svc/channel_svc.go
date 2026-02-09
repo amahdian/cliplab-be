@@ -337,11 +337,12 @@ func (s *channelSvc) getTikTokEngagement(handle string) ([]*model.Post, *resp.Ch
 
 	first := res.AwemeList[0]
 	var posts []*model.Post
-	var totalLikes, totalComments, totalPlays int64
+	var totalLikes, totalComments, totalPlays, totalShares int64
 	for _, item := range res.AwemeList {
 		totalLikes += item.Statistics.DiggCount
 		totalComments += item.Statistics.CommentCount
 		totalPlays += item.Statistics.PlayCount
+		totalShares += item.Statistics.ShareCount
 
 		coverImg := ""
 		if len(item.Video.Cover.URLList) > 0 {
@@ -368,6 +369,7 @@ func (s *channelSvc) getTikTokEngagement(handle string) ([]*model.Post, *resp.Ch
 			UserProfileLink:  fmt.Sprintf("https://www.tiktok.com/@%s", item.Author.UniqueID),
 			UserProfileImage: profileImg,
 			LikeCount:        item.Statistics.DiggCount,
+			VideoViewCount:   item.Statistics.PlayCount,
 			CommentCount:     item.Statistics.CommentCount,
 			VideoPlayCount:   item.Statistics.PlayCount,
 			PostDate:         time.Unix(item.CreateTime, 0),
@@ -378,11 +380,12 @@ func (s *channelSvc) getTikTokEngagement(handle string) ([]*model.Post, *resp.Ch
 	avgLikes := float64(totalLikes) / float64(count)
 	avgComments := float64(totalComments) / float64(count)
 	avgPlays := float64(totalPlays) / float64(count)
+	avgShare := float64(totalShares) / float64(count)
 
 	followers := first.Author.FollowerCount
 	var avgER float64
 	if followers > 0 {
-		avgER = ((avgLikes + avgComments) / float64(followers)) * 100
+		avgER = ((avgLikes + avgComments + avgShare) / float64(followers)) * 100
 	}
 
 	profileImg := ""

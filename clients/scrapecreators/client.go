@@ -215,7 +215,7 @@ func (c *client) GetTikTokVideo(videoURL string) (*TikTokAwemeDetail, error) {
 }
 
 func (c *client) GetTikTokProfileVideos(username string) (*TikTokProfileVideosResponse, error) {
-	endpoint := fmt.Sprintf("%s/v2/tiktok/user/videos", c.BaseURL)
+	endpoint := fmt.Sprintf("%s/v3/tiktok/profile/videos", c.BaseURL)
 
 	u, err := url.Parse(endpoint)
 	if err != nil {
