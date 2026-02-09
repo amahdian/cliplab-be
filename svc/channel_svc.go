@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -463,13 +464,13 @@ func (s *channelSvc) getTwitterEngagement(handle string) ([]*model.Post, *resp.C
 	followers := int64(userResult.Legacy.FollowersCount)
 	var avgER float64
 	if followers > 0 {
-		avgER = (avgLikes + avgComments + avgRetweets/float64(followers)) * 100
+		avgER = ((avgLikes + avgComments + avgRetweets) / float64(followers)) * 100
 	}
 
 	latestDate, _ := s.parseTwitterDate(first.Legacy.CreatedAt)
 
 	return posts, &resp.ChannelEngagementResponse{
-		ProfileImage:          userResult.Avatar.ImageURL,
+		ProfileImage:          userResult.Legacy.ProfileImage,
 		ProfileUrl:            fmt.Sprintf("https://x.com/%s", handle),
 		ProfileDescriptor:     userResult.Legacy.Description,
 		FollowersCount:        followers,
@@ -538,6 +539,17 @@ func (s *channelSvc) parseTwitterDate(createdAt string) (time.Time, error) {
 }
 
 func (s *channelSvc) mapPostsToBreakdown(posts []*model.Post, followers int64) []*resp.PostBreakdown {
+	// Sort posts by date descending to get latest posts first
+	sort.Slice(posts, func(i, j int) bool {
+		return posts[i].PostDate.After(posts[j].PostDate)
+	})
+
+	// Limit to 12 last items
+	limit := 12
+	if len(posts) > limit {
+		posts = posts[:limit]
+	}
+
 	var breakdown []*resp.PostBreakdown
 	for _, p := range posts {
 		var er float64

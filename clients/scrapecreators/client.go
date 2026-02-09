@@ -344,7 +344,7 @@ func (c *client) GetTweet(tweetURL string) (*TwitterTweetResponse, error) {
 }
 
 func (c *client) GetUserTweets(username string) (*TwitterUserTweetsResponse, error) {
-	endpoint := fmt.Sprintf("%s/v1/twitter/user/tweets", c.BaseURL)
+	endpoint := fmt.Sprintf("%s/v1/twitter/user-tweets", c.BaseURL)
 
 	u, err := url.Parse(endpoint)
 	if err != nil {

@@ -63,6 +63,7 @@ type TwitterUserLegacy struct {
 	FavouritesCount  int    `json:"favourites_count"`
 	MediaCount       int    `json:"media_count"`
 	ProfileBannerURL string `json:"profile_banner_url"`
+	ProfileImage     string `json:"profile_image_url_https"`
 }
 
 type TwitterViews struct {
