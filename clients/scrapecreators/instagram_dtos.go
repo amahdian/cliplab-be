@@ -221,7 +221,7 @@ type ReelMedia struct {
 	IsReshareOfTextPostAppMediaInIg                      bool                     `json:"is_reshare_of_text_post_app_media_in_ig"`
 	IsVisualReplyCommenterNoticeEnabled                  bool                     `json:"is_visual_reply_commenter_notice_enabled"`
 	ShareCountDisabled                                   bool                     `json:"share_count_disabled"`
-	Pk                                                   string                   `json:"pk"`
+	Pk                                                   int64                    `json:"pk"`
 	ID                                                   string                   `json:"id"`
 	HasDelayedMetadata                                   bool                     `json:"has_delayed_metadata"`
 	MezqlToken                                           string                   `json:"mezql_token"`
