@@ -103,10 +103,10 @@ type TaggedUserEdge struct {
 }
 
 type TaggedUserNode struct {
-	User User    `json:"user"`
-	X    float64 `json:"x"`
-	Y    float64 `json:"y"`
-	ID   string  `json:"id"`
+	User User                    `json:"user"`
+	X    float64                 `json:"x"`
+	Y    float64                 `json:"y"`
+	ID   jsonutil.StringOrNumber `json:"id"`
 }
 
 type User struct {
