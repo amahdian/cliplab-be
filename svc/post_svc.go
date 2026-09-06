@@ -107,13 +107,27 @@ func (s *analyzeSvc) AddRequestToAnalyzeQueue(url url.URL, user *auth.UserInfo, 
 		return nil, err
 	}
 
-	// Dedut credits for registered users
+	// Deduct credits for registered users
 	if rem, creditErr := s.creditSvc.CheckAndDeduct(user.Id, model.CreditKeyReelAnalyze); creditErr == nil {
 		remainingCredits = rem
 		creditsUsed = model.GetCreditRule(model.CreditKeyReelAnalyze).Amount
 	} else {
 		err = creditErr
 		return nil, err
+	}
+
+	if analyzeRequest == nil {
+		analyzeRequest = &model.AnalyzeRequest{
+			ID:     uuid.New(),
+			Link:   url.String(),
+			UserId: &user.Id,
+			UserIP: string(ip),
+			Status: model.RequestStatusPending,
+		}
+
+		if post != nil {
+			analyzeRequest.PostId = &post.ID
+		}
 	}
 
 	if analyzeRequest.Status == model.RequestStatusCompleted {
@@ -148,6 +162,7 @@ func (s *analyzeSvc) AddRequestToAnalyzeQueue(url url.URL, user *auth.UserInfo, 
 	if err != nil {
 		return nil, errs.Newf(errs.Internal, err, "failed to marshal post data")
 	}
+
 	if err = s.RedisClient.LPush(s.ctx, global.RedisPostQueue, jsonData).Err(); err != nil {
 		return nil, errs.Newf(errs.Internal, err, "failed to publish post")
 	}
