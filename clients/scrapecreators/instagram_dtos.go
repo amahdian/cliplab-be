@@ -16,7 +16,7 @@ type Data struct {
 
 // ReelData represents the Instagram Reel data.
 type ReelData struct {
-	ID                          string                    `json:"id"`
+	ID                          jsonutil.StringOrNumber   `json:"id"`
 	Shortcode                   string                    `json:"shortcode"`
 	ThumbnailSrc                string                    `json:"thumbnail_src"`
 	Dimensions                  Dimensions                `json:"dimensions"`
@@ -110,33 +110,33 @@ type TaggedUserNode struct {
 }
 
 type User struct {
-	FullName           string `json:"full_name"`
-	FollowedByViewer   bool   `json:"followed_by_viewer"`
-	ID                 string `json:"id"`
-	IsVerified         bool   `json:"is_verified"`
-	ProfilePicURL      string `json:"profile_pic_url"`
-	Username           string `json:"username"`
-	BlockedByViewer    *bool  `json:"blocked_by_viewer,omitempty"`
-	RestrictedByViewer *bool  `json:"restricted_by_viewer,omitempty"`
+	FullName           string                  `json:"full_name"`
+	FollowedByViewer   bool                    `json:"followed_by_viewer"`
+	ID                 jsonutil.StringOrNumber `json:"id"`
+	IsVerified         bool                    `json:"is_verified"`
+	ProfilePicURL      string                  `json:"profile_pic_url"`
+	Username           string                  `json:"username"`
+	BlockedByViewer    *bool                   `json:"blocked_by_viewer,omitempty"`
+	RestrictedByViewer *bool                   `json:"restricted_by_viewer,omitempty"`
 }
 
 type Owner struct {
-	ID                        string      `json:"id"`
-	Username                  string      `json:"username"`
-	IsVerified                bool        `json:"is_verified"`
-	ProfilePicURL             string      `json:"profile_pic_url"`
-	BlockedByViewer           bool        `json:"blocked_by_viewer"`
-	RestrictedByViewer        interface{} `json:"restricted_by_viewer"`
-	FollowedByViewer          bool        `json:"followed_by_viewer"`
-	FullName                  string      `json:"full_name"`
-	HasBlockedViewer          bool        `json:"has_blocked_viewer"`
-	IsEmbedsDisabled          bool        `json:"is_embeds_disabled"`
-	IsPrivate                 bool        `json:"is_private"`
-	IsUnpublished             bool        `json:"is_unpublished"`
-	RequestedByViewer         bool        `json:"requested_by_viewer"`
-	PassTieringRecommendation bool        `json:"pass_tiering_recommendation"`
-	EdgeOwnerToTimelineMedia  EdgeCount   `json:"edge_owner_to_timeline_media"`
-	EdgeFollowedBy            EdgeCount   `json:"edge_followed_by"`
+	ID                        jsonutil.StringOrNumber `json:"id"`
+	Username                  string                  `json:"username"`
+	IsVerified                bool                    `json:"is_verified"`
+	ProfilePicURL             string                  `json:"profile_pic_url"`
+	BlockedByViewer           bool                    `json:"blocked_by_viewer"`
+	RestrictedByViewer        interface{}             `json:"restricted_by_viewer"`
+	FollowedByViewer          bool                    `json:"followed_by_viewer"`
+	FullName                  string                  `json:"full_name"`
+	HasBlockedViewer          bool                    `json:"has_blocked_viewer"`
+	IsEmbedsDisabled          bool                    `json:"is_embeds_disabled"`
+	IsPrivate                 bool                    `json:"is_private"`
+	IsUnpublished             bool                    `json:"is_unpublished"`
+	RequestedByViewer         bool                    `json:"requested_by_viewer"`
+	PassTieringRecommendation bool                    `json:"pass_tiering_recommendation"`
+	EdgeOwnerToTimelineMedia  EdgeCount               `json:"edge_owner_to_timeline_media"`
+	EdgeFollowedBy            EdgeCount               `json:"edge_followed_by"`
 }
 
 type EdgeCount struct {
@@ -152,9 +152,9 @@ type CaptionEdge struct {
 }
 
 type CaptionNode struct {
-	CreatedAt string `json:"created_at"`
-	Text      string `json:"text"`
-	ID        string `json:"id"`
+	CreatedAt string                  `json:"created_at"`
+	Text      string                  `json:"text"`
+	ID        jsonutil.StringOrNumber `json:"id"`
 }
 
 type EdgeMediaToParentComment struct {
@@ -168,15 +168,15 @@ type CommentEdge struct {
 }
 
 type CommentNode struct {
-	ID                   string               `json:"id"`
-	Text                 string               `json:"text"`
-	CreatedAt            int64                `json:"created_at"`
-	DidReportAsSpam      bool                 `json:"did_report_as_spam"`
-	Owner                User                 `json:"owner"`
-	ViewerHasLiked       bool                 `json:"viewer_has_liked"`
-	EdgeLikedBy          EdgeCount            `json:"edge_liked_by"`
-	IsRestrictedPending  bool                 `json:"is_restricted_pending"`
-	EdgeThreadedComments EdgeThreadedComments `json:"edge_threaded_comments,omitempty"`
+	ID                   jsonutil.StringOrNumber `json:"id"`
+	Text                 string                  `json:"text"`
+	CreatedAt            int64                   `json:"created_at"`
+	DidReportAsSpam      bool                    `json:"did_report_as_spam"`
+	Owner                User                    `json:"owner"`
+	ViewerHasLiked       bool                    `json:"viewer_has_liked"`
+	EdgeLikedBy          EdgeCount               `json:"edge_liked_by"`
+	IsRestrictedPending  bool                    `json:"is_restricted_pending"`
+	EdgeThreadedComments EdgeThreadedComments    `json:"edge_threaded_comments,omitempty"`
 }
 
 type EdgeThreadedComments struct {
@@ -191,10 +191,10 @@ type PageInfo struct {
 }
 
 type CoauthorProducer struct {
-	ID            string `json:"id"`
-	IsVerified    bool   `json:"is_verified"`
-	ProfilePicURL string `json:"profile_pic_url"`
-	Username      string `json:"username"`
+	ID            jsonutil.StringOrNumber `json:"id"`
+	IsVerified    bool                    `json:"is_verified"`
+	ProfilePicURL string                  `json:"profile_pic_url"`
+	Username      string                  `json:"username"`
 }
 
 // --- Reels Response DTOs ---
@@ -211,7 +211,7 @@ type ReelItem struct {
 }
 
 type ReelMedia struct {
-	StrongID                                             string                   `json:"strong_id__"`
+	StrongID                                             jsonutil.StringOrNumber  `json:"strong_id__"`
 	Fbid                                                 jsonutil.StringOrNumber  `json:"fbid"`
 	DeletedReason                                        int                      `json:"deleted_reason"`
 	IsUnifiedVideo                                       bool                     `json:"is_unified_video"`
@@ -224,7 +224,7 @@ type ReelMedia struct {
 	IsVisualReplyCommenterNoticeEnabled                  bool                     `json:"is_visual_reply_commenter_notice_enabled"`
 	ShareCountDisabled                                   bool                     `json:"share_count_disabled"`
 	Pk                                                   jsonutil.StringOrNumber  `json:"pk"`
-	ID                                                   string                   `json:"id"`
+	ID                                                   jsonutil.StringOrNumber  `json:"id"`
 	HasDelayedMetadata                                   bool                     `json:"has_delayed_metadata"`
 	MezqlToken                                           string                   `json:"mezql_token"`
 	ShouldRequestAds                                     bool                     `json:"should_request_ads"`
@@ -374,13 +374,13 @@ type Crop struct {
 }
 
 type ReelCaption struct {
-	StrongID     string   `json:"strong_id__"`
-	CreatedAt    int64    `json:"created_at"`
-	CreatedAtUtc int64    `json:"created_at_utc"`
-	Pk           string   `json:"pk"`
-	MediaID      string   `json:"media_id"`
-	Text         string   `json:"text"`
-	User         ReelUser `json:"user"`
+	StrongID     jsonutil.StringOrNumber `json:"strong_id__"`
+	CreatedAt    int64                   `json:"created_at"`
+	CreatedAtUtc int64                   `json:"created_at_utc"`
+	Pk           jsonutil.StringOrNumber `json:"pk"`
+	MediaID      jsonutil.StringOrNumber `json:"media_id"`
+	Text         string                  `json:"text"`
+	User         ReelUser                `json:"user"`
 }
 
 type ReelUser struct {
@@ -392,7 +392,7 @@ type ReelUser struct {
 	Username                       string                  `json:"username"`
 	IsPrivate                      bool                    `json:"is_private"`
 	IsVerified                     bool                    `json:"is_verified"`
-	ProfilePicId                   string                  `json:"profile_pic_id"`
+	ProfilePicId                   jsonutil.StringOrNumber `json:"profile_pic_id"`
 	ProfilePicUrl                  string                  `json:"profile_pic_url"`
 	FbidV2                         jsonutil.StringOrNumber `json:"fbid_v2"`
 	FeedPostReshareDisabled        bool                    `json:"feed_post_reshare_disabled"`
@@ -439,34 +439,34 @@ type ReelUserTag struct {
 // --- Page Posts Response DTOs ---
 
 type PostsResponse struct {
-	Success                   bool        `json:"success"`
-	CreditsRemaining          int         `json:"credits_remaining"`
-	NextMaxID                 string      `json:"next_max_id"`
-	User                      PostUser    `json:"user"`
-	AutoLoadMoreEnabled       bool        `json:"auto_load_more_enabled"`
-	Status                    string      `json:"status"`
-	ProfileGridItems          interface{} `json:"profile_grid_items"`
-	ProfileGridItemsCursor    interface{} `json:"profile_grid_items_cursor"`
-	PinnedProfileGridItemsIDs interface{} `json:"pinned_profile_grid_items_ids"`
-	SpecialEmptyState         interface{} `json:"special_empty_state"`
-	NumResults                int         `json:"num_results"`
-	MoreAvailable             bool        `json:"more_available"`
-	Items                     []ReelMedia `json:"items"`
+	Success                   bool                    `json:"success"`
+	CreditsRemaining          int                     `json:"credits_remaining"`
+	NextMaxID                 jsonutil.StringOrNumber `json:"next_max_id"`
+	User                      PostUser                `json:"user"`
+	AutoLoadMoreEnabled       bool                    `json:"auto_load_more_enabled"`
+	Status                    string                  `json:"status"`
+	ProfileGridItems          interface{}             `json:"profile_grid_items"`
+	ProfileGridItemsCursor    interface{}             `json:"profile_grid_items_cursor"`
+	PinnedProfileGridItemsIDs interface{}             `json:"pinned_profile_grid_items_ids"`
+	SpecialEmptyState         interface{}             `json:"special_empty_state"`
+	NumResults                int                     `json:"num_results"`
+	MoreAvailable             bool                    `json:"more_available"`
+	Items                     []ReelMedia             `json:"items"`
 }
 
 type PostUser struct {
-	StrongID               string `json:"strong_id__"`
-	Pk                     string `json:"pk"`
-	PkID                   string `json:"pk_id"`
-	FullName               string `json:"full_name"`
-	ProfileGridDisplayType string `json:"profile_grid_display_type"`
-	ID                     string `json:"id"`
-	Username               string `json:"username"`
-	IsPrivate              bool   `json:"is_private"`
-	IsVerified             bool   `json:"is_verified"`
-	ProfilePicId           string `json:"profile_pic_id"`
-	ProfilePicUrl          string `json:"profile_pic_url"`
-	IsActiveOnTextPostApp  bool   `json:"is_active_on_text_post_app"`
+	StrongID               string                  `json:"strong_id__"`
+	Pk                     jsonutil.StringOrNumber `json:"pk"`
+	PkID                   jsonutil.StringOrNumber `json:"pk_id"`
+	FullName               string                  `json:"full_name"`
+	ProfileGridDisplayType string                  `json:"profile_grid_display_type"`
+	ID                     jsonutil.StringOrNumber `json:"id"`
+	Username               string                  `json:"username"`
+	IsPrivate              bool                    `json:"is_private"`
+	IsVerified             bool                    `json:"is_verified"`
+	ProfilePicId           string                  `json:"profile_pic_id"`
+	ProfilePicUrl          string                  `json:"profile_pic_url"`
+	IsActiveOnTextPostApp  bool                    `json:"is_active_on_text_post_app"`
 }
 
 type WearableAttributionInfo struct {
