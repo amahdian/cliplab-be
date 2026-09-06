@@ -210,7 +210,7 @@ type ReelItem struct {
 
 type ReelMedia struct {
 	StrongID                                             string                   `json:"strong_id__"`
-	Fbid                                                 string                   `json:"fbid"`
+	Fbid                                                 int64                    `json:"fbid"`
 	DeletedReason                                        int                      `json:"deleted_reason"`
 	IsUnifiedVideo                                       bool                     `json:"is_unified_video"`
 	ClientCacheKey                                       string                   `json:"client_cache_key"`
