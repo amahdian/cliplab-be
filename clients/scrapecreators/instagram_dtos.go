@@ -384,9 +384,9 @@ type ReelCaption struct {
 }
 
 type ReelUser struct {
-	StrongID                       string                  `json:"strong_id__"`
+	StrongID                       jsonutil.StringOrNumber `json:"strong_id__"`
 	Pk                             jsonutil.StringOrNumber `json:"pk"`
-	PkID                           string                  `json:"pk_id"`
+	PkID                           jsonutil.StringOrNumber `json:"pk_id"`
 	ID                             jsonutil.StringOrNumber `json:"id"`
 	FullName                       string                  `json:"full_name"`
 	Username                       string                  `json:"username"`
@@ -455,7 +455,7 @@ type PostsResponse struct {
 }
 
 type PostUser struct {
-	StrongID               string                  `json:"strong_id__"`
+	StrongID               jsonutil.StringOrNumber `json:"strong_id__"`
 	Pk                     jsonutil.StringOrNumber `json:"pk"`
 	PkID                   jsonutil.StringOrNumber `json:"pk_id"`
 	FullName               string                  `json:"full_name"`
@@ -464,7 +464,7 @@ type PostUser struct {
 	Username               string                  `json:"username"`
 	IsPrivate              bool                    `json:"is_private"`
 	IsVerified             bool                    `json:"is_verified"`
-	ProfilePicId           string                  `json:"profile_pic_id"`
+	ProfilePicId           jsonutil.StringOrNumber `json:"profile_pic_id"`
 	ProfilePicUrl          string                  `json:"profile_pic_url"`
 	IsActiveOnTextPostApp  bool                    `json:"is_active_on_text_post_app"`
 }
