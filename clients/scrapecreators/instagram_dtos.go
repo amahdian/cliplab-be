@@ -383,7 +383,7 @@ type ReelCaption struct {
 
 type ReelUser struct {
 	StrongID                       string `json:"strong_id__"`
-	Pk                             string `json:"pk"`
+	Pk                             int64  `json:"pk"`
 	PkID                           string `json:"pk_id"`
 	ID                             int64  `json:"id"`
 	FullName                       string `json:"full_name"`
