@@ -385,7 +385,7 @@ type ReelUser struct {
 	StrongID                       string `json:"strong_id__"`
 	Pk                             string `json:"pk"`
 	PkID                           string `json:"pk_id"`
-	ID                             string `json:"id"`
+	ID                             int64  `json:"id"`
 	FullName                       string `json:"full_name"`
 	Username                       string `json:"username"`
 	IsPrivate                      bool   `json:"is_private"`
