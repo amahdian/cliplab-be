@@ -1,5 +1,7 @@
 package scrapecreators
 
+import "github.com/amahdian/cliplab-be/pkg/jsonutil"
+
 // Response represents the top-level structure of the ScrapeCreators Instagram Post response.
 type Response struct {
 	Success          bool   `json:"success"`
@@ -210,7 +212,7 @@ type ReelItem struct {
 
 type ReelMedia struct {
 	StrongID                                             string                   `json:"strong_id__"`
-	Fbid                                                 int64                    `json:"fbid"`
+	Fbid                                                 jsonutil.StringOrNumber  `json:"fbid"`
 	DeletedReason                                        int                      `json:"deleted_reason"`
 	IsUnifiedVideo                                       bool                     `json:"is_unified_video"`
 	ClientCacheKey                                       string                   `json:"client_cache_key"`
@@ -221,7 +223,7 @@ type ReelMedia struct {
 	IsReshareOfTextPostAppMediaInIg                      bool                     `json:"is_reshare_of_text_post_app_media_in_ig"`
 	IsVisualReplyCommenterNoticeEnabled                  bool                     `json:"is_visual_reply_commenter_notice_enabled"`
 	ShareCountDisabled                                   bool                     `json:"share_count_disabled"`
-	Pk                                                   int64                    `json:"pk"`
+	Pk                                                   jsonutil.StringOrNumber  `json:"pk"`
 	ID                                                   string                   `json:"id"`
 	HasDelayedMetadata                                   bool                     `json:"has_delayed_metadata"`
 	MezqlToken                                           string                   `json:"mezql_token"`
@@ -382,25 +384,25 @@ type ReelCaption struct {
 }
 
 type ReelUser struct {
-	StrongID                       string `json:"strong_id__"`
-	Pk                             int64  `json:"pk"`
-	PkID                           string `json:"pk_id"`
-	ID                             int64  `json:"id"`
-	FullName                       string `json:"full_name"`
-	Username                       string `json:"username"`
-	IsPrivate                      bool   `json:"is_private"`
-	IsVerified                     bool   `json:"is_verified"`
-	ProfilePicId                   string `json:"profile_pic_id"`
-	ProfilePicUrl                  string `json:"profile_pic_url"`
-	FbidV2                         string `json:"fbid_v2"`
-	FeedPostReshareDisabled        bool   `json:"feed_post_reshare_disabled"`
-	IsUnpublished                  bool   `json:"is_unpublished"`
-	ThirdPartyDownloadsEnabled     int    `json:"third_party_downloads_enabled"`
-	CanSeeQuietPostAttribution     bool   `json:"can_see_quiet_post_attribution"`
-	AccountType                    int    `json:"account_type"`
-	ShowAccountTransparencyDetails bool   `json:"show_account_transparency_details"`
-	TransparencyProductEnabled     bool   `json:"transparency_product_enabled"`
-	IsActiveOnTextPostApp          bool   `json:"is_active_on_text_post_app"`
+	StrongID                       string                  `json:"strong_id__"`
+	Pk                             jsonutil.StringOrNumber `json:"pk"`
+	PkID                           string                  `json:"pk_id"`
+	ID                             jsonutil.StringOrNumber `json:"id"`
+	FullName                       string                  `json:"full_name"`
+	Username                       string                  `json:"username"`
+	IsPrivate                      bool                    `json:"is_private"`
+	IsVerified                     bool                    `json:"is_verified"`
+	ProfilePicId                   string                  `json:"profile_pic_id"`
+	ProfilePicUrl                  string                  `json:"profile_pic_url"`
+	FbidV2                         jsonutil.StringOrNumber `json:"fbid_v2"`
+	FeedPostReshareDisabled        bool                    `json:"feed_post_reshare_disabled"`
+	IsUnpublished                  bool                    `json:"is_unpublished"`
+	ThirdPartyDownloadsEnabled     int                     `json:"third_party_downloads_enabled"`
+	CanSeeQuietPostAttribution     bool                    `json:"can_see_quiet_post_attribution"`
+	AccountType                    int                     `json:"account_type"`
+	ShowAccountTransparencyDetails bool                    `json:"show_account_transparency_details"`
+	TransparencyProductEnabled     bool                    `json:"transparency_product_enabled"`
+	IsActiveOnTextPostApp          bool                    `json:"is_active_on_text_post_app"`
 }
 
 type ClipsMetadata struct {
